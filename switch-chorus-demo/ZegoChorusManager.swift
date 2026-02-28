@@ -372,7 +372,7 @@ class ZegoChorusManager: NSObject {
         let ntpTime = getNetworkTimestamp()
         currentProgressNtpTime = ntpTime
 
-        var messageDict: [String: Any] = [
+        let messageDict: [String: Any] = [
             SEIMessageKey.role: role.rawValue,
             SEIMessageKey.progress: currentProgress,
             SEIMessageKey.pointTime: ntpTime,
@@ -487,14 +487,8 @@ extension ZegoChorusManager: ZegoEventHandler {
             return
         }
 
-        let resourceID = dict[SEIMessageKey.resourceID] as? String
-
         switch behavior {
         case .play, .resume:
-            
-            if let resourceID = resourceID {
-                
-            }
             startInFuture(startTime)
         case .stop:
             stopPlaying()

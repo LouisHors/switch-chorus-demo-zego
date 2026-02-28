@@ -1,0 +1,1563 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": -140,
+      "y": -104,
+      "name": "Login",
+      "clip": true,
+      "width": 450,
+      "height": 704,
+      "fill": "$--bg-page",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "GMwmJ",
+          "x": 0,
+          "y": 120,
+          "name": "title",
+          "fill": "$--text-primary",
+          "content": "语聊房",
+          "textAlign": "center",
+          "fontFamily": "DM Sans",
+          "fontSize": 32,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "DQeYi",
+          "x": 0,
+          "y": 160,
+          "name": "subtitle",
+          "fill": "$--text-tertiary",
+          "content": "输入房间号，加入聊天",
+          "textAlign": "center",
+          "fontFamily": "DM Sans",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "frame",
+          "id": "YZpwv",
+          "x": 76,
+          "y": 280,
+          "name": "inputContainer",
+          "width": 300,
+          "layout": "vertical",
+          "gap": 16,
+          "children": [
+            {
+              "type": "text",
+              "id": "DVCGq",
+              "name": "inputLabel",
+              "fill": "$--text-primary",
+              "content": "房间号",
+              "fontFamily": "DM Sans",
+              "fontSize": 14,
+              "fontWeight": "600"
+            },
+            {
+              "type": "frame",
+              "id": "DMbmy",
+              "name": "roomInput",
+              "width": "fill_container",
+              "height": 48,
+              "fill": "$--bg-elevated",
+              "cornerRadius": 14,
+              "layout": "vertical",
+              "padding": [
+                0,
+                16
+              ],
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "nU1k7",
+                  "name": "inputPlaceholder",
+                  "fill": "$--text-tertiary",
+                  "content": "请输入房间号",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 15,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "0qsKR",
+              "name": "loginBtn",
+              "width": "fill_container",
+              "height": 48,
+              "fill": "$--accent-terracotta",
+              "cornerRadius": 14,
+              "layout": "vertical",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "uZ4DH",
+                  "name": "loginText",
+                  "fill": "$--text-on-accent",
+                  "content": "进入房间",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 15,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "8Qto2",
+      "x": 500,
+      "y": -104,
+      "name": "Voice Chat Room-init",
+      "width": 402,
+      "height": 704,
+      "fill": "$--bg-page",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "eHaFM",
+          "name": "header",
+          "width": "fill_container",
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "hEtQ5",
+              "name": "backBtn",
+              "width": 20,
+              "height": 20,
+              "iconFontName": "chevron-left",
+              "iconFontFamily": "lucide",
+              "fill": "$--text-primary"
+            },
+            {
+              "type": "frame",
+              "id": "63fgq",
+              "name": "roomInfo",
+              "layout": "vertical",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "f3MuE",
+                  "name": "roomTitle",
+                  "fill": "$--text-primary",
+                  "content": "组队合唱",
+                  "fontFamily": "$--font-primary",
+                  "fontSize": 16,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "NaGSv",
+              "name": "placeholder",
+              "width": 20,
+              "height": 20
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "nA0eG",
+          "name": "playerSection",
+          "clip": true,
+          "width": "fill_container",
+          "height": 180,
+          "fill": "#d9d9d9ff",
+          "cornerRadius": 20,
+          "children": [
+            {
+              "type": "rectangle",
+              "id": "nTXI9",
+              "name": "playerBg",
+              "fill": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 135,
+                "size": {
+                  "height": 1
+                },
+                "colors": [
+                  {
+                    "color": "#EA580C",
+                    "position": 0
+                  },
+                  {
+                    "color": "#D97706",
+                    "position": 1
+                  }
+                ]
+              },
+              "width": "fill_container",
+              "height": "fill_container"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "RXjNh",
+          "name": "sectionTitle",
+          "fill": "$--text-primary",
+          "content": "合唱队伍",
+          "fontFamily": "DM Sans",
+          "fontSize": 16,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "mVZHf",
+          "name": "userList",
+          "width": "fill_container",
+          "height": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "CGZp5",
+              "name": "leftCol",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$--bg-card",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "$--border-subtle"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 5,
+                  "id": "jyfsy",
+                  "name": "leftAvatar",
+                  "fill": "$--bg-elevated",
+                  "width": 60,
+                  "height": 60,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$--border-strong"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yeTsz",
+              "name": "rightCol",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "#FEF3EC",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "$--border-subtle"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 5,
+                  "id": "500Ss",
+                  "name": "rightAvatar",
+                  "fill": "$--bg-elevated",
+                  "width": 60,
+                  "height": 60,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$--border-strong"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "jA3gj",
+          "name": "bottomBar",
+          "width": "fill_container",
+          "height": 76,
+          "fill": "$--bg-elevated",
+          "cornerRadius": 20,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "BRtos",
+              "name": "leftControls",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "jPL2p",
+                  "name": "micBtn",
+                  "width": 44,
+                  "height": 44,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "7EndU",
+                      "name": "micIcon",
+                      "width": 20,
+                      "height": 20,
+                      "iconFontName": "mic",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-on-accent"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Y6qXF",
+              "name": "giftBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "oOlm0",
+                  "fill": "$--accent-terracotta",
+                  "content": "点歌",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rmGji",
+              "name": "micUpBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "BdozM",
+                  "name": "micUpText",
+                  "fill": "$--accent-terracotta",
+                  "content": "上麦",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "FuJQh",
+              "name": "centerControls",
+              "width": 64,
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "iycoa",
+                  "name": "leaveBtn",
+                  "width": 70,
+                  "height": 44,
+                  "fill": "#DC2626",
+                  "cornerRadius": 22,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "MdcBQ",
+                      "name": "leaveText",
+                      "fill": "$--text-on-accent",
+                      "content": "离开",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "EuguN",
+      "x": 1739,
+      "y": -104,
+      "name": "Voice Chat Room-onGoing",
+      "width": 402,
+      "height": 704,
+      "fill": "$--bg-page",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "Vrbs5",
+          "name": "header",
+          "width": "fill_container",
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "Csa1H",
+              "name": "backBtn",
+              "width": 20,
+              "height": 20,
+              "iconFontName": "chevron-left",
+              "iconFontFamily": "lucide",
+              "fill": "$--text-primary"
+            },
+            {
+              "type": "frame",
+              "id": "c75YH",
+              "name": "roomInfo",
+              "layout": "vertical",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "b05Jf",
+                  "name": "roomTitle",
+                  "fill": "$--text-primary",
+                  "content": "组队合唱",
+                  "fontFamily": "$--font-primary",
+                  "fontSize": 16,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "u5oNI",
+              "name": "placeholder",
+              "width": 20,
+              "height": 20
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "wVDnl",
+          "name": "playerSection",
+          "clip": true,
+          "width": "fill_container",
+          "height": 180,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 135,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#EA580C",
+                "position": 0
+              },
+              {
+                "color": "#D97706",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 20,
+          "layout": "vertical",
+          "gap": 6,
+          "padding": [
+            16,
+            24,
+            12,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "l5qRQ",
+              "name": "prevLyric",
+              "fill": "#ffffffff",
+              "content": "上一句歌词内容",
+              "textAlign": "center",
+              "fontFamily": "DM Sans",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "HQjh2",
+              "name": "currentLyric",
+              "fill": "#FFFFFF",
+              "content": "正在演唱的歌词高亮显示",
+              "textAlign": "center",
+              "fontFamily": "DM Sans",
+              "fontSize": 18,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "YQTTN",
+              "name": "nextLyric",
+              "fill": "#ffffffff",
+              "content": "下一句歌词内容预览",
+              "textAlign": "center",
+              "fontFamily": "DM Sans",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "QV9CU",
+              "name": "playerControlBar",
+              "width": 280,
+              "height": 40,
+              "fill": "rgba(255,255,255,0.15)",
+              "cornerRadius": 20,
+              "padding": [
+                6,
+                20
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "GkWTW",
+                  "name": "playBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "PcLFH",
+                      "name": "playIcon",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "play",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-on-accent"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lgEVE",
+                  "name": "nextBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$--bg-card",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "OGAdN",
+                      "name": "nextIcon",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "skip-forward",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--accent-terracotta"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d9bdU",
+                  "name": "stopBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$--bg-card",
+                  "cornerRadius": 10,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "yY4L7",
+                      "name": "stopIcon",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "square",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--accent-terracotta"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "pFhzl",
+          "name": "sectionTitle",
+          "fill": "$--text-primary",
+          "content": "合唱队伍",
+          "fontFamily": "DM Sans",
+          "fontSize": 16,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "snkou",
+          "name": "userList",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "8hxOJ",
+              "name": "userListContent",
+              "width": "fill_container",
+              "height": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "9lkmQ",
+                  "name": "leftCol",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$--bg-card",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "$--border-subtle"
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 5,
+                      "id": "Fa8X4",
+                      "name": "leftAvatar",
+                      "fill": "$--bg-elevated",
+                      "width": 60,
+                      "height": 60,
+                      "stroke": {
+                        "thickness": 2,
+                        "fill": "$--border-strong"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "knLFi",
+                  "name": "rightCol",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "#FEF3EC",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "$--border-subtle"
+                  },
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 24,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 5,
+                      "id": "R7vej",
+                      "name": "rightAvatar",
+                      "fill": "$--bg-elevated",
+                      "width": 60,
+                      "height": 60,
+                      "stroke": {
+                        "thickness": 2,
+                        "fill": "$--border-strong"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "qai7q",
+          "name": "bottomBar",
+          "width": "fill_container",
+          "height": 76,
+          "fill": "$--bg-elevated",
+          "cornerRadius": 20,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "lyyhM",
+              "name": "leftControls",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1
+              },
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "7KWK0",
+                  "name": "micBtn",
+                  "width": 44,
+                  "height": 44,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "HSkSG",
+                      "name": "micIcon",
+                      "width": 20,
+                      "height": 20,
+                      "iconFontName": "mic",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-on-accent"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "BTLLG",
+              "name": "giftBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "M886s",
+                  "fill": "$--accent-terracotta",
+                  "content": "点歌",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "hG5lF",
+              "name": "micUpBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "iyoKY",
+                  "name": "micUpText",
+                  "fill": "$--accent-terracotta",
+                  "content": "上麦",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "dMQqi",
+              "name": "centerControls",
+              "width": 64,
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ukkXg",
+                  "name": "leaveBtn",
+                  "width": 70,
+                  "height": 44,
+                  "fill": "#DC2626",
+                  "cornerRadius": 22,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "1Rr9a",
+                      "name": "leaveText",
+                      "fill": "$--text-on-accent",
+                      "content": "离开",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "BoXIZ",
+      "x": 1110,
+      "y": -104,
+      "name": "Voice Chat Room-songPick",
+      "width": 402,
+      "height": 704,
+      "fill": "$--bg-page",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "xhuB5",
+          "name": "header",
+          "width": "fill_container",
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "jIjsl",
+              "name": "backBtn",
+              "width": 20,
+              "height": 20,
+              "iconFontName": "chevron-left",
+              "iconFontFamily": "lucide",
+              "fill": "$--text-primary"
+            },
+            {
+              "type": "frame",
+              "id": "fWpKJ",
+              "name": "roomInfo",
+              "layout": "vertical",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "O5N1V",
+                  "name": "roomTitle",
+                  "fill": "$--text-primary",
+                  "content": "组队合唱",
+                  "fontFamily": "$--font-primary",
+                  "fontSize": 16,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Drx8Y",
+              "name": "placeholder",
+              "width": 20,
+              "height": 20
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "uXFhM",
+          "name": "playerSection",
+          "clip": true,
+          "width": "fill_container",
+          "height": 180,
+          "fill": "#d9d9d9ff",
+          "cornerRadius": 20,
+          "children": [
+            {
+              "type": "rectangle",
+              "id": "2wtVI",
+              "name": "playerBg",
+              "fill": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 135,
+                "size": {
+                  "height": 1
+                },
+                "colors": [
+                  {
+                    "color": "#EA580C",
+                    "position": 0
+                  },
+                  {
+                    "color": "#D97706",
+                    "position": 1
+                  }
+                ]
+              },
+              "width": "fill_container",
+              "height": "fill_container"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "hf9mC",
+          "name": "sectionTitle",
+          "fill": "$--text-primary",
+          "content": "合唱队伍",
+          "fontFamily": "DM Sans",
+          "fontSize": 16,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "FEkgG",
+          "name": "userList",
+          "width": "fill_container",
+          "height": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "6ZvRg",
+              "name": "leftCol",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$--bg-card",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "$--border-subtle"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 5,
+                  "id": "kUf0n",
+                  "name": "leftAvatar",
+                  "fill": "$--bg-elevated",
+                  "width": 60,
+                  "height": 60,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$--border-strong"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qHzQA",
+              "name": "rightCol",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "#FEF3EC",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "$--border-subtle"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 24,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 5,
+                  "id": "x4wah",
+                  "name": "rightAvatar",
+                  "fill": "$--bg-elevated",
+                  "width": 60,
+                  "height": 60,
+                  "stroke": {
+                    "thickness": 2,
+                    "fill": "$--border-strong"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "SnOEt",
+          "name": "bottomBar",
+          "width": "fill_container",
+          "height": 76,
+          "fill": "$--bg-elevated",
+          "cornerRadius": 20,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "G1WCY",
+              "name": "leftControls",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "7637Y",
+                  "name": "micBtn",
+                  "width": 44,
+                  "height": 44,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "xaT9R",
+                      "name": "micIcon",
+                      "width": 20,
+                      "height": 20,
+                      "iconFontName": "mic",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-on-accent"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "jkdDL",
+              "name": "giftBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "fz88A",
+                  "fill": "$--accent-terracotta",
+                  "content": "点歌",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "3rieW",
+              "name": "micUpBtn",
+              "width": 64,
+              "height": 44,
+              "fill": "$--bg-card",
+              "cornerRadius": 12,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "egktL",
+                  "name": "micUpText",
+                  "fill": "$--accent-terracotta",
+                  "content": "上麦",
+                  "textAlign": "center",
+                  "fontFamily": "Black Han Sans",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "G44cE",
+              "name": "centerControls",
+              "width": 64,
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BfF84",
+                  "name": "leaveBtn",
+                  "width": 70,
+                  "height": 44,
+                  "fill": "#DC2626",
+                  "cornerRadius": 22,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hvyoa",
+                      "name": "leaveText",
+                      "fill": "$--text-on-accent",
+                      "content": "离开",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "DG5LE",
+      "x": 1110,
+      "y": 653,
+      "name": "Song Pick Modal",
+      "width": 402,
+      "height": 500,
+      "fill": "$--bg-elevated",
+      "cornerRadius": 24,
+      "layout": "vertical",
+      "gap": 16,
+      "padding": [
+        20,
+        24,
+        24,
+        24
+      ],
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "eg124",
+          "name": "dragHandle",
+          "width": 40,
+          "height": 4,
+          "fill": "$--border-subtle",
+          "cornerRadius": 2
+        },
+        {
+          "type": "text",
+          "id": "moH8K",
+          "name": "title",
+          "fill": "$--text-primary",
+          "content": "选择歌曲",
+          "textAlign": "center",
+          "fontFamily": "DM Sans",
+          "fontSize": 18,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "nBCBd",
+          "name": "songList",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "frame",
+              "id": "GsRBY",
+              "name": "songRow1",
+              "width": "fill_container",
+              "padding": [
+                12,
+                0
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "dpTZ0",
+                  "name": "songName1",
+                  "fill": "$--text-primary",
+                  "content": "歌曲名称一",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 16,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "MeisA",
+                  "name": "confirmBtn1",
+                  "width": 60,
+                  "height": 32,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 8,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "3hpXy",
+                      "name": "confirmText1",
+                      "fill": "$--text-on-accent",
+                      "content": "确定",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "wA9vy",
+              "name": "songRow2",
+              "width": "fill_container",
+              "padding": [
+                12,
+                0
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "t9pzr",
+                  "name": "songName2",
+                  "fill": "$--text-primary",
+                  "content": "歌曲名称二",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 16,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "NKFX8",
+                  "name": "confirmBtn2",
+                  "width": 60,
+                  "height": 32,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 8,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "aD0vr",
+                      "name": "confirmText2",
+                      "fill": "$--text-on-accent",
+                      "content": "确定",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "2fbsr",
+              "name": "songRow3",
+              "width": "fill_container",
+              "padding": [
+                12,
+                0
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "NTFY8",
+                  "name": "songName3",
+                  "fill": "$--text-primary",
+                  "content": "歌曲名称三",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 16,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "vk0FV",
+                  "name": "confirmBtn3",
+                  "width": 60,
+                  "height": 32,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 8,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "0M4DE",
+                      "name": "confirmText3",
+                      "fill": "$--text-on-accent",
+                      "content": "确定",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "6RU0u",
+              "name": "songRow4",
+              "width": "fill_container",
+              "padding": [
+                12,
+                0
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "806sT",
+                  "name": "songName4",
+                  "fill": "$--text-primary",
+                  "content": "歌曲名称四",
+                  "fontFamily": "DM Sans",
+                  "fontSize": 16,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "HcTwe",
+                  "name": "confirmBtn4",
+                  "width": 60,
+                  "height": 32,
+                  "fill": "$--accent-terracotta",
+                  "cornerRadius": 8,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kjYKW",
+                      "name": "confirmText4",
+                      "fill": "$--text-on-accent",
+                      "content": "确定",
+                      "fontFamily": "DM Sans",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "note",
+      "id": "QCDKB",
+      "x": 163.14235425317884,
+      "y": 881.0586916887211,
+      "width": 523,
+      "height": 451,
+      "content": "1. 由于是 demo，没有完整的信令服务，因此合唱队伍每边只有一个麦位\n2. 那怎么确定 A 队，B 队呢？ 根据流列表来，进房的时候，如果流列表为 0 条流，那么上麦就是 A 队，如果 1 条流，那么上麦就是 B 队，同时更新自己的 streamInfo，切 B 队要判断一下已有的流的 streamInfo 是不是已经标记了 A 队。其他人进房收到是两条流且都有 streamInfo，那么就不能上麦（UI 限制）"
+    },
+    {
+      "type": "rectangle",
+      "id": "jtBux",
+      "x": 500,
+      "y": 702,
+      "fill": "#ffffffff",
+      "width": 158,
+      "height": 145
+    },
+    {
+      "type": "frame",
+      "id": "R7XgO",
+      "x": 557,
+      "y": 753,
+      "name": "leftControls",
+      "gap": 12,
+      "children": [
+        {
+          "type": "frame",
+          "id": "XCSJj",
+          "name": "micBtn",
+          "width": 44,
+          "height": 44,
+          "fill": "$--accent-terracotta",
+          "cornerRadius": 12,
+          "layout": "vertical",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "4FNkA",
+              "name": "micIcon",
+              "width": 20,
+              "height": 20,
+              "iconFontName": "mic-off",
+              "iconFontFamily": "lucide",
+              "fill": "$--text-on-accent"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "--accent-teal": {
+      "type": "color",
+      "value": "#0D9488"
+    },
+    "--accent-terracotta": {
+      "type": "color",
+      "value": "#EA580C"
+    },
+    "--bg-card": {
+      "type": "color",
+      "value": "#F1F1F1"
+    },
+    "--bg-elevated": {
+      "type": "color",
+      "value": "#FFFFFF"
+    },
+    "--bg-page": {
+      "type": "color",
+      "value": "#FAFAF9"
+    },
+    "--border-strong": {
+      "type": "color",
+      "value": "#D6D3D1"
+    },
+    "--border-subtle": {
+      "type": "color",
+      "value": "#E7E5E4"
+    },
+    "--font-mono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "--font-primary": {
+      "type": "string",
+      "value": "DM Sans"
+    },
+    "--text-muted": {
+      "type": "color",
+      "value": "#D6D3D1"
+    },
+    "--text-on-accent": {
+      "type": "color",
+      "value": "#FFFFFF"
+    },
+    "--text-primary": {
+      "type": "color",
+      "value": "#292524"
+    },
+    "--text-secondary": {
+      "type": "color",
+      "value": "#78716C"
+    },
+    "--text-tertiary": {
+      "type": "color",
+      "value": "#A8A29E"
+    }
+  }
+}

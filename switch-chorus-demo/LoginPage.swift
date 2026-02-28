@@ -9,37 +9,6 @@
 import UIKit
 import ZegoExpressEngine
 
-// MARK: - 设计颜色常量
-struct AppColors {
-    static let bgPage = UIColor(hex: "#FAFAF9")
-    static let textPrimary = UIColor(hex: "#292524")
-    static let textSecondary = UIColor(hex: "#78716C")
-    static let textTertiary = UIColor(hex: "#A8A29E")
-    static let bgElevated = UIColor(hex: "#FFFFFF")
-    static let accentTerracotta = UIColor(hex: "#EA580C")
-    static let textOnAccent = UIColor(hex: "#FFFFFF")
-    static let borderSubtle = UIColor(hex: "#E7E5E4")
-}
-
-// MARK: - UIColor 扩展（支持十六进制颜色）
-extension UIColor {
-    convenience init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 6:
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: CGFloat(a) / 255)
-    }
-}
-
 // MARK: - 登录页面
 class LoginPage: UIViewController {
 
@@ -49,7 +18,7 @@ class LoginPage: UIViewController {
     private let titleLabel: UILabel = {
         let label = UILabel()
         label.text = "语聊房"
-        label.font = UIFont(name: "DM Sans-Bold", size: 32) ?? UIFont.systemFont(ofSize: 32, weight: .bold)
+        label.font = .systemFont(ofSize: 32, weight: .bold)
         label.textColor = AppColors.textPrimary
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -60,7 +29,7 @@ class LoginPage: UIViewController {
     private let subtitleLabel: UILabel = {
         let label = UILabel()
         label.text = "输入房间号，加入聊天"
-        label.font = UIFont(name: "DM Sans", size: 14) ?? UIFont.systemFont(ofSize: 14)
+        label.font = .systemFont(ofSize: 14)
         label.textColor = AppColors.textTertiary
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -71,7 +40,7 @@ class LoginPage: UIViewController {
     private let inputLabel: UILabel = {
         let label = UILabel()
         label.text = "房间号"
-        label.font = UIFont(name: "DM Sans-SemiBold", size: 14) ?? UIFont.systemFont(ofSize: 14, weight: .semibold)
+        label.font = .systemFont(ofSize: 14, weight: .semibold)
         label.textColor = AppColors.textPrimary
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -81,7 +50,7 @@ class LoginPage: UIViewController {
     private let roomInputField: UITextField = {
         let textField = UITextField()
         textField.placeholder = "请输入房间号"
-        textField.font = UIFont(name: "DM Sans", size: 15) ?? UIFont.systemFont(ofSize: 15)
+        textField.font = .systemFont(ofSize: 15)
         textField.textColor = AppColors.textPrimary
         textField.backgroundColor = AppColors.bgElevated
         textField.layer.cornerRadius = 14
@@ -95,7 +64,7 @@ class LoginPage: UIViewController {
     private let loginButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("进入房间", for: .normal)
-        button.titleLabel?.font = UIFont(name: "DM Sans-SemiBold", size: 15) ?? UIFont.systemFont(ofSize: 15, weight: .semibold)
+        button.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
         button.setTitleColor(AppColors.textOnAccent, for: .normal)
         button.backgroundColor = AppColors.accentTerracotta
         button.layer.cornerRadius = 14
@@ -253,6 +222,7 @@ class LoginPage: UIViewController {
 
         // 登录房间
         loginRoom(roomID: roomID, userID: userID, userName: userName)
+        self.navigateToChorusPage(roomID: roomID, userID: ZegoAppConfig.userID)
     }
 
     /// 登录房间
@@ -267,11 +237,6 @@ class LoginPage: UIViewController {
         let user = ZegoUser(userID: userID, userName: userName)
         let config = ZegoRoomConfig()
         config.isUserStatusNotify = true
-
-        // 如果有 Token，设置 Token
-        if !ZegoAppConfig.token.isEmpty {
-            config.token = ZegoAppConfig.token
-        }
 
         ZegoExpressEngine.shared().loginRoom(roomID, user: user, config: config)
         print("[LoginPage] 正在登录房间: \(roomID), 用户: \(userID)")
@@ -301,11 +266,10 @@ class LoginPage: UIViewController {
     /// 跳转到合唱页面
     private func navigateToChorusPage(roomID: String, userID: String) {
         // 使用 ZegoChorusManager 进行后续管理
-        ZegoChorusManager.shared.createEngine()
+        initializeZegoSDK()
 
-        let chorusVC = ChorusViewController()
+        let chorusVC = TeamChorusViewController()
         chorusVC.roomID = roomID
-        chorusVC.userID = userID
 
         navigationController?.pushViewController(chorusVC, animated: true)
 
@@ -358,18 +322,17 @@ extension LoginPage: ZegoEventHandler {
                 if errorCode == 0 {
                     // 登录成功
                     print("[LoginPage] 登录房间成功")
-                    self.navigateToChorusPage(roomID: roomID, userID: ZegoExpressEngine.shared().currentUser?.userID ?? "")
                 } else {
                     // 登录失败
                     self.setLoadingState(false)
                     self.showAlert(title: "登录失败", message: "错误码: \(errorCode)")
                 }
 
-            case .disconnecting:
+            case .disconnected:
                 print("[LoginPage] 正在断开连接")
 
-            case .reconnecting:
-                print("[LoginPage] 正在重连")
+            case .connecting:
+                print("[LoginPage] 正在连接")
 
             @unknown default:
                 break
