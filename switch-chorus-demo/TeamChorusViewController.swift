@@ -10,22 +10,55 @@ import ZegoExpressEngine
 
 class TeamChorusViewController: UIViewController {
 
-    
     // MARK: - 逻辑属性
     /// zego 实例
     let zego = ZegoExpressEngine.shared()
-    
-    /// 当前
+
     /// 流列表
     var roomStreamList: Set<ZegoStream> = []
-    
-    /// 是否能推流
-    var canPublish: Bool {
-        return self.roomStreamList.count < 2
-    }
-    
+
+    /// 我的队伍（A队/B队）
+    var myTeam: ChorusTeam?
+
     /// 推流状态
     var isPublishing = false
+
+    /// 是否能推流（基于队伍逻辑）
+    /// - 0 条流 → 可以上麦（A队）
+    /// - 1 条流 → 检查是否已标记 A队，可以上麦（B队）
+    /// - 2 条流 → 不能上麦
+    var canPublish: Bool {
+        let streamCount = roomStreamList.count
+        if streamCount == 0 {
+            return true  // 可以作为 A队上麦
+        } else if streamCount == 1 {
+            // 检查已有的流是否标记了 A队
+            return hasTeamAMarked()
+        } else {
+            return false  // 2条流，不能上麦
+        }
+    }
+
+    /// 检查流列表中是否已有 A队标记
+    private func hasTeamAMarked() -> Bool {
+        for stream in roomStreamList {
+            if let extraInfo = stream.extraInfo, extraInfo.contains("team:A") {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// 根据当前流列表判断应该加入哪个队伍
+    private func determineMyTeam() -> ChorusTeam? {
+        let streamCount = roomStreamList.count
+        if streamCount == 0 {
+            return .teamA  // 第一个上麦的是 A队
+        } else if streamCount == 1 && hasTeamAMarked() {
+            return .teamB  // 已有 A队，第二个是 B队
+        }
+        return nil  // 不能上麦
+    }
     
     
     
@@ -190,6 +223,10 @@ class TeamChorusViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         zego.setEventHandler(self)
+
+        // 配置音频参数（合唱场景）
+        setupAudioConfig()
+
         setupUI()
         setupActions()
     }
@@ -350,6 +387,51 @@ class TeamChorusViewController: UIViewController {
         leaveButton.addTarget(self, action: #selector(leaveButtonTapped(_:)), for: .touchUpInside)
     }
 
+    // MARK: - 音频配置
+
+    /// 配置音频参数（合唱场景）
+    /// 参考: 会玩KTV单唱场景参数配置表.csv - 第14列 (iOS合唱主播)
+    private func setupAudioConfig() {
+        // 1. 设置音频编码配置
+        // 基于 ZegoExpressEngine+Publisher.h:330
+        // 参数: Low3 (OPUS), 128kbps, Stereo
+        let audioConfig = ZegoAudioConfig()
+        audioConfig.codecID = .low3
+        audioConfig.bitrate = 128
+        audioConfig.channel = .stereo
+        zego.setAudioConfig(audioConfig)
+
+        // 2. 设置音频设备模式
+        // 基于 ZegoExpressEngine+Device.h:172
+        // General 模式: 不使用系统回声消除，适用于 KTV 场景
+        zego.setAudioDeviceMode(.general)
+
+        // 3. 启用回声消除
+        // 基于 ZegoExpressEngine+Preprocess.h:66
+        zego.enableAEC(true)
+
+        // 4. 设置回声消除模式
+        // 基于 ZegoExpressEngine+Preprocess.h:93
+        // Soft 模式: 音质最好，适用于音乐场景
+        zego.setAECMode(.soft)
+
+        // 5. 启用噪声抑制
+        // 基于 ZegoExpressEngine+Preprocess.h:118
+        zego.enableANS(true)
+
+        // 6. 设置噪声抑制模式
+        // 基于 ZegoExpressEngine+Preprocess.h:143
+        // Medium 模式: 平衡音质和降噪效果
+        zego.setANSMode(.medium)
+
+        // 7. 关闭耳机回声消除
+        // 基于 ZegoExpressEngine+Preprocess.h:81
+        // 音乐场景需要关闭，保证音质
+        zego.enableHeadphoneAEC(false)
+
+        print("[TeamChorus] 音频配置完成 - 合唱场景")
+    }
+
     // MARK: - 按钮响应事件
 
     /// 返回按钮点击
@@ -377,22 +459,108 @@ class TeamChorusViewController: UIViewController {
     /// 点歌按钮点击 - 打开点歌弹窗
     @objc private func pickSongButtonTapped(_ sender: UIButton) {
         // TODO: 待完成
-        
+
     }
 
     /// 上麦按钮点击 - 开始推流
+    /// 参考: docs/双人轮唱的合唱场景方案.md - 同时推两路流与进度对齐配置
     @objc private func micUpButtonTapped(_ sender: UIButton) {
-        // 要先判断能不能推流，即当前房间有几条流，0,1 都可以推流，2 不可以推流
-        if canPublish {
-            print("当前房间内麦位已饱和，无法上麦")
+        // 已经在推流中，执行下麦逻辑
+        if isPublishing {
+            stopPublishing()
             return
         }
-        // 上麦只推主路流，点歌以后再推第二路流
-        let publishConfig = ZegoPublisherConfig()
-        publishConfig.forceSynchronousNetworkTime = 1
-        
-        // 还有 UI 变化
-        
+
+        // 判断能不能推流
+        guard let team = determineMyTeam() else {
+            print("[TeamChorus] 当前房间内麦位已饱和或队伍分配异常，无法上麦")
+            return
+        }
+
+        // 开始推流
+        startPublishing(team: team)
+    }
+
+    /// 开始推流
+    /// - Parameter team: 队伍（A队/B队）
+    private func startPublishing(team: ChorusTeam) {
+        // 记录队伍
+        myTeam = team
+
+        // 生成流 ID
+        let userID = ZegoAppConfig.userID
+        let mainStreamID = "\(userID)_\(roomID)_chorus"  // 主路流：伴奏+人声混音
+        let auxStreamID = "\(userID)_\(roomID)_voice"    // 辅路流：纯人声
+
+        // 1. 开启主路流推流对齐能力
+        // 基于 ZegoExpressEngine+Publisher.h:509
+        // ZegoStreamAlignmentModeTry = 1
+        zego.setStreamAlignmentProperty(1, channel: .main)
+
+        // 2. 主路推流配置
+        // 基于 ZegoExpressEngine+Publisher.h
+        // ZegoPublisherConfig 没有 streamID 属性，streamID 通过 startPublishingStream 传递
+        let mainConfig = ZegoPublisherConfig()
+        mainConfig.forceSynchronousNetworkTime = 1  // 强制同步网络时间
+
+        // 3. 开始推主路流
+        zego.startPublishingStream(mainStreamID, config: mainConfig, channel: .main)
+        print("[TeamChorus] 主路流开始推流: \(mainStreamID)")
+
+        // 4. 开启辅路流推流对齐能力
+        zego.setStreamAlignmentProperty(1, channel: .aux)
+
+        // 5. 辅路推流配置
+        let auxConfig = ZegoPublisherConfig()
+        auxConfig.forceSynchronousNetworkTime = 1
+
+        // 6. 开始推辅路流
+        zego.startPublishingStream(auxStreamID, config: auxConfig, channel: .aux)
+        print("[TeamChorus] 辅路流开始推流: \(auxStreamID)")
+
+        // 7. 设置流的额外信息（标记队伍）
+        // 基于 ZegoExpressEngine+Publisher.h:137
+        // 格式: team:A 或 team:B
+        let extraInfo = "team:\(team.rawValue)"
+        zego.setStreamExtraInfo(extraInfo) { errorCode in
+            if errorCode == 0 {
+                print("[TeamChorus] 流额外信息设置成功: \(extraInfo)")
+            } else {
+                print("[TeamChorus] 流额外信息设置失败: \(errorCode)")
+            }
+        }
+
+        // 8. 更新推流状态
+        isPublishing = true
+
+        // 9. 更新 UI
+        updateMicUpButtonUI(isPublishing: true)
+        print("[TeamChorus] 上麦成功，队伍: \(team.rawValue)")
+    }
+
+    /// 停止推流（下麦）
+    private func stopPublishing() {
+        zego.stopPublishingStream()
+        zego.stopPublishingStream(channel: .aux)
+
+        isPublishing = false
+        myTeam = nil
+
+        updateMicUpButtonUI(isPublishing: false)
+        print("[TeamChorus] 下麦成功")
+    }
+
+    /// 更新上麦按钮 UI
+    private func updateMicUpButtonUI(isPublishing: Bool) {
+        if isPublishing {
+            micUpButton.setTitle("下麦", for: .normal)
+            micUpButton.backgroundColor = AppColors.accentTerracotta
+            micUpButton.setTitleColor(AppColors.textOnAccent, for: .normal)
+        } else {
+            micUpButton.setTitle("上麦", for: .normal)
+            micUpButton.backgroundColor = AppColors.bgCard
+            micUpButton.setTitleColor(AppColors.accentTerracotta, for: .normal)
+        }
     }
 
     /// 离开按钮点击 - 退出房间

@@ -183,10 +183,31 @@ class LoginPage: UIViewController {
     private func initializeZegoSDK() {
 
         // 1. 配置超低延迟模式（必须在创建引擎前配置）
+        // 参考: docs/双人轮唱的合唱场景方案.md - 私有配置
         let engineConfig = ZegoEngineConfig()
         engineConfig.advancedConfig = [
+            // 高通滤波器关闭（保留低频人声细节）
+            "prep_high_pass_filter": "false",
+            // 超低延迟模式
             "ultra_low_latency": "true",
-            "enforce_audio_loopback_in_sync": "true"
+            // 耳机回声消除自适应
+            "enable_earphone_aec_adaptive": "true",
+            // 蓝牙采集仅使用 VOIP 模式
+            "bluetooth_capture_only_voip": "true",
+            // 辅助延迟模式
+            "auxiliary_delay_mode": "0",
+            // KTV 适配设备延迟
+            "ktv_adapt_device_delay": "true",
+            // 低精度网络时间使用阈值（ms）
+            "when_to_use_low_precision_network_time": "10000",
+            // 防止仿真字节
+            "emulation_prevention_byte": "true",
+            // 音乐检测模式（2 = 音乐场景）
+            "music_detection_mode": "2",
+            // 抖动级别补偿
+            "jitter_level_compensation": "true",
+            // 音频采集 dummy 模式
+            "audio_capture_dummy": "true"
         ]
         ZegoExpressEngine.setEngineConfig(engineConfig)
 
@@ -198,8 +219,48 @@ class LoginPage: UIViewController {
 
         ZegoExpressEngine.createEngine(with: profile, eventHandler: self)
 
+        // 3. 关闭摄像头，规避隐私风险
+        // 基于 ZegoExpressEngine+Device.h:249
+        ZegoExpressEngine.shared().enableCamera(false)
+
+        // 4. 设置设备低延时模式（合唱场景）
+        // 基于 ZegoExpressEngine.h:246 - callExperimentalAPI
+        // 参考: 会玩KTV单唱场景参数配置表.csv - 第107行
+        // mode: 2 = 合唱场景，使用低延迟采集&渲染API策略
+        let deviceLatencyParams = """
+        {"method": "liveroom.audio.set_device_latency_mode", "params":{"mode":2}}
+        """
+        ZegoExpressEngine.shared().callExperimentalAPI(deviceLatencyParams)
+
+        // 5. 配置自定义音频采集处理（人声复用）
+        // 参考: docs/双人轮唱的合唱场景方案.md - 基于 ZegoExpressEngine SDK 的采集音频数据回调和自定义音频采集实现人声复用
+        setupCustomAudioProcessing()
+
         isSDKInitialized = true
         print("[LoginPage] ZEGO SDK 初始化完成, AppID: \(ZegoAppConfig.appID)")
+    }
+
+    /// 配置自定义音频采集处理（人声复用）
+    /// 辅路流：自定义音频前处理，获取经过处理后的人声数据，再通过音频外部采集的能力，将数据重新给到 SDK
+    private func setupCustomAudioProcessing() {
+        // 注意：ZegoExpressEngine.shared() 返回非 Optional 类型
+        // 如果引擎未创建或已销毁，会返回一个不可用的引擎对象
+        let engine = ZegoExpressEngine.shared()
+
+        // 自定义音频前处理配置
+        let customConfig = ZegoCustomAudioProcessConfig()
+        customConfig.channel = .mono
+        customConfig.sampleRate = .rate48K
+        customConfig.samples = 0
+        engine.enableCustomAudioCaptureProcessing(true, config: customConfig)
+
+        // 开启音频外部采集接口（辅路通道）
+        let audioConfig = ZegoCustomAudioConfig()
+        audioConfig.sourceType = .custom
+        engine.enableCustomAudioIO(true, config: audioConfig, channel: .aux)
+        engine.setAudioSource(.custom, channel: .aux)
+
+        print("[LoginPage] 自定义音频采集处理配置完成")
     }
 
     // MARK: - 登录逻辑
