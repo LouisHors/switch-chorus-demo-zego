@@ -16,6 +16,17 @@ class TeamChorusViewController: UIViewController {
     let zego = ZegoExpressEngine.shared()
     
     /// 当前
+    /// 流列表
+    var roomStreamList: Set<ZegoStream> = []
+    
+    /// 是否能推流
+    var canPublish: Bool {
+        return self.roomStreamList.count < 2
+    }
+    
+    /// 推流状态
+    var isPublishing = false
+    
     
     
     // MARK: - UI 组件
@@ -372,15 +383,22 @@ class TeamChorusViewController: UIViewController {
     /// 上麦按钮点击 - 开始推流
     @objc private func micUpButtonTapped(_ sender: UIButton) {
         // 要先判断能不能推流，即当前房间有几条流，0,1 都可以推流，2 不可以推流
-        
+        if canPublish {
+            print("当前房间内麦位已饱和，无法上麦")
+            return
+        }
         // 上麦只推主路流，点歌以后再推第二路流
+        let publishConfig = ZegoPublisherConfig()
+        publishConfig.forceSynchronousNetworkTime = 1
         
         // 还有 UI 变化
+        
     }
 
     /// 离开按钮点击 - 退出房间
     @objc private func leaveButtonTapped(_ sender: UIButton) {
-
+        zego.logoutRoom()
+        navigationController?.popViewController(animated: true)
     }
 }
 
@@ -399,7 +417,20 @@ extension TeamChorusViewController: ZegoEventHandler {
     }
     
     func onRoomStreamUpdate(_ updateType: ZegoUpdateType, streamList: [ZegoStream], extendedData: [AnyHashable : Any]?, roomID: String) {
-        
+        if updateType == .add {
+            if roomStreamList.count > 2 {
+                print("当前房间内已经记录过两条流，不做其他操作，可能出现了其他问题\n")
+                print("")
+                return
+            }
+            streamList.forEach { stream in
+                roomStreamList.insert(stream)
+            }
+        }else {
+            streamList.forEach { stream in
+                roomStreamList.remove(stream)
+            }
+        }
     }
     
     func onRoomStreamExtraInfoUpdate(_ streamList: [ZegoStream], roomID: String) {
