@@ -64,6 +64,13 @@ enum ChorusRole: Int {
     case songOwner = 2   // 点歌用户（主唱，额外推伴奏流）
 }
 
+// MARK: - 队伍定义
+/// 合唱队伍枚举
+enum ChorusTeam: String {
+    case teamA = "A"  // A队（先唱）
+    case teamB = "B"  // B队（后唱）
+}
+
 // MARK: - 流 ID 后缀
 struct StreamIDSuffix {
     /// 伴奏流后缀
