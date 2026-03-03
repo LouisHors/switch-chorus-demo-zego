@@ -4,7 +4,121 @@
 
 ---
 
-## SDK 版本信息
+## ⚠️ 强制检查清单
+
+**在编写任何 Zego API 调用代码前，必须完成以下检查：**
+
+```
+□ 1. 返回类型验证
+     - 是否为 Optional？→ 查头文件确认
+     - 示例：ZegoExpressEngine.shared() 返回非 Optional
+
+□ 2. 参数类型验证
+     - 参数数量是否正确？
+     - 参数类型是否正确？
+     - 示例：setStreamExtraInfo 回调只有 errorCode 一个参数
+
+□ 3. 属性存在性验证
+     - 配置类是否有该属性？
+     - 示例：ZegoPublisherConfig 没有 streamID 属性
+
+□ 4. 枚举值验证
+     - 枚举值是否存在？
+     - 原始值是什么？
+```
+
+---
+
+## 🚨 常见错误记录（坑点）
+
+> 这些是实际犯过的错误，必须避免重复！
+
+### 错误 1：假设返回类型为 Optional
+
+```swift
+// ❌ 错误：ZegoExpressEngine.shared() 返回非 Optional
+guard let engine = ZegoExpressEngine.shared() else { return }
+
+// ✅ 正确：直接使用
+let engine = ZegoExpressEngine.shared()
+```
+
+**原因**：没有查头文件确认返回类型
+**教训**：所有单例/工厂方法都要确认返回类型
+
+---
+
+### 错误 2：假设配置类有某个属性
+
+```swift
+// ❌ 错误：ZegoPublisherConfig 没有 streamID 属性
+let config = ZegoPublisherConfig()
+config.streamID = "xxx"  // 编译错误！
+
+// ✅ 正确：streamID 通过方法参数传递
+zego.startPublishingStream("xxx", config: config, channel: .main)
+```
+
+**原因**：假设配置类包含所有相关属性
+**教训**：配置类的属性必须查头文件确认
+
+---
+
+### 错误 3：回调参数数量错误
+
+```swift
+// ❌ 错误：假设回调有两个参数
+zego.setStreamExtraInfo(info) { errorCode, streamID in
+    // 编译错误！
+}
+
+// ✅ 正确：回调只有一个参数
+zego.setStreamExtraInfo(info) { errorCode in
+    // 正确
+}
+```
+
+**原因**：没有查看 typedef 定义
+**教训**：所有回调都要查 `typedef` 确认参数
+
+---
+
+## 📋 配置类属性速查
+
+> 这些配置类的**实际属性**，不要假设有其他属性！
+
+### ZegoPublisherConfig (ZegoExpressDefines.h:2594)
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| roomID | String | 房间 ID（多房间模式需要） |
+| forceSynchronousNetworkTime | Int | 强制同步网络时间 |
+| streamCensorshipMode | ZegoStreamCensorshipMode | 审核模式 |
+
+**⚠️ 注意：没有 streamID 属性！**
+
+### ZegoAudioConfig (ZegoExpressDefines.h:3688)
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| bitrate | Int | 码率 (kbps) |
+| channel | ZegoAudioChannel | 声道数 |
+| codecID | ZegoAudioCodecID | 编码格式 |
+
+### ZegoEngineConfig
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| advancedConfig | [String: String] | 私有配置 |
+
+### ZegoRoomConfig
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| isUserStatusNotify | Bool | 用户状态通知 |
+| maxMemberCount | Int | 最大成员数 |
+
+---
 
 | 字段 | 值 | 来源 |
 |------|-----|------|
@@ -19,27 +133,62 @@
 ## 工作流程
 
 ```
-┌─────────────────────────────────────────┐
-│  1. 检查 SDK 版本号                      │
-│     读取 Info.plist 中的版本信息         │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│  2. 版本对比                             │
-│     当前缓存: 3.23.1 (47919)             │
-└──────────────┬──────────────────────────┘
-               │
-       ┌───────┴───────┐
-       │               │
-       ▼               ▼
-   版本相同         版本变化
-       │               │
-       ▼               ▼
-┌─────────────┐  ┌─────────────────┐
-│ 3. 查白名单  │  │ 重新扫描头文件   │
-│    直接使用  │  │ 更新白名单       │
-└─────────────┘  └─────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  步骤 1: 检查 SDK 版本                              │
+│  ─────────────────────                              │
+│  读取 Info.plist 中的版本信息                       │
+│  当前缓存: 3.23.1 (47919)                           │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  步骤 2: 查白名单                                    │
+│  ───────────────                                    │
+│  API 是否在白名单中？                               │
+└──────────────────────┬──────────────────────────────┘
+                       │
+               ┌───────┴───────┐
+               │               │
+               ▼               ▼
+           在白名单         不在白名单
+               │               │
+               │               ▼
+               │    ┌─────────────────────┐
+               │    │ 步骤 3: 查头文件     │
+               │    │ ───────────────     │
+               │    │ 确认以下信息：       │
+               │    │ □ 方法名            │
+               │    │ □ 返回类型          │
+               │    │ □ 参数类型和数量    │
+               │    │ □ 枚举值            │
+               │    └──────────┬──────────┘
+               │               │
+               │               ▼
+               │    ┌─────────────────────┐
+               │    │ 步骤 4: 更新白名单   │
+               │    └──────────┬──────────┘
+               │               │
+               └───────┬───────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  步骤 5: 编写代码                                    │
+│  ───────────────                                    │
+│  ✅ 代码中标注来源: // 基于 ZegoExpressEngine.h:47  │
+│  ✅ 完成强制检查清单                                 │
+└─────────────────────────────────────────────────────┘
+```
+
+### 代码标注格式
+
+```swift
+// ✅ 正确示例
+// 基于 ZegoExpressEngine+Publisher.h:509
+// ZegoStreamAlignmentModeTry = 1
+zego.setStreamAlignmentProperty(1, channel: .main)
+
+// ❌ 错误示例（没有标注来源）
+zego.setStreamAlignmentProperty(1, channel: .main)
 ```
 
 ---
