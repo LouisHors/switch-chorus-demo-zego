@@ -101,23 +101,36 @@ class SongPickerViewController: UIViewController {
 
     // MARK: - 加载歌曲
     private func loadSongs() {
-        // 获取 resources 目录路径
-        guard let resourcePath = Bundle.main.resourcePath?.appending("/resources"),
-              let files = try? FileManager.default.contentsOfDirectory(atPath: resourcePath) else {
-            print("[SongPicker] 无法读取 resources 目录")
-            return
+        var loadedSongs: [SongItem] = []
+
+        // 方式1: 尝试获取 resources 文件夹引用 (folder reference)
+        if let resourcesURL = Bundle.main.url(forResource: "resources", withExtension: nil),
+           let files = try? FileManager.default.contentsOfDirectory(at: resourcesURL, includingPropertiesForKeys: nil) {
+            loadedSongs = files
+                .filter { $0.pathExtension == "mp3" }
+                .map { url in
+                    let name = url.deletingPathExtension().lastPathComponent
+                    return SongItem(name: name, filePath: url.path)
+                }
         }
 
-        // 筛选 mp3 文件
-        songs = files
-            .filter { $0.hasSuffix(".mp3") }
-            .map { fileName in
-                let filePath = resourcePath.appending("/\(fileName)")
-                // 移除扩展名作为歌曲名
-                let name = (fileName as NSString).deletingPathExtension
-                return SongItem(name: name, filePath: filePath)
+        // 方式2: 直接在 Bundle 中搜索 mp3 文件 (如果文件是单独添加的)
+        if loadedSongs.isEmpty {
+            let resourcePath = Bundle.main.resourcePath ?? ""
+            if let files = try? FileManager.default.contentsOfDirectory(atPath: resourcePath) {
+                loadedSongs = files
+                    .filter { $0.hasSuffix(".mp3") }
+                    .compactMap { fileName -> SongItem? in
+                        guard let path = Bundle.main.path(forResource: (fileName as NSString).deletingPathExtension, ofType: "mp3") else {
+                            return nil
+                        }
+                        let name = (fileName as NSString).deletingPathExtension
+                        return SongItem(name: name, filePath: path)
+                    }
             }
+        }
 
+        songs = loadedSongs
         print("[SongPicker] 加载了 \(songs.count) 首歌曲")
         tableView.reloadData()
     }
