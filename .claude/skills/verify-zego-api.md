@@ -102,6 +102,38 @@ zego.stopPublishingStream(.aux)
 
 ---
 
+### 错误 5：属性名称猜测错误
+
+```swift
+// ❌ 错误：假设属性名是 codec
+audioConfig.codec = .low3  // 编译错误！
+
+// ✅ 正确：查头文件确认属性名是 codecID
+// 来源: ZegoExpressDefines.h:3697
+audioConfig.codecID = .low3
+```
+
+**原因**：没有查看头文件确认属性名，**教训**：所有配置类属性都要查头文件确认，- 不要基于其他语言 SDK 猽测
+- 属性名可能有缩写或全称（如 codecID 不是 codec）
+
+---
+
+### 错误 5：属性名称猜测错误
+
+```swift
+// ❌ 错误：猜测属性名为 codec
+audioConfig.codec = .low3
+
+// ✅ 正确：查看头文件 ZegoExpressDefines.h:3697
+// @property (nonatomic, assign) ZegoAudioCodecID codecID;
+audioConfig.codecID = .low3
+```
+
+**原因**：没有查看头文件确认属性名，基于其他 SDK 经验猜测
+**教训**：所有配置类属性都要查头文件，不要假设属性名
+
+---
+
 ## 📋 配置类属性速查
 
 > 这些配置类的**实际属性**，不要假设有其他属性！
@@ -120,8 +152,9 @@ zego.stopPublishingStream(.aux)
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
-| bitrate | Int | 码率 (kbps) |
+| bitrate | Int | 粅率 (kbps) |
 | channel | ZegoAudioChannel | 声道数 |
+| **codecID** | ZegoAudioCodecID | 编码格式 (**不是 codec!**) |
 | codecID | ZegoAudioCodecID | 编码格式 |
 
 ### ZegoEngineConfig

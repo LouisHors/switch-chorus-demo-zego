@@ -329,8 +329,7 @@ class LoginPage: UIViewController {
         // 使用 ZegoChorusManager 进行后续管理
         initializeZegoSDK()
 
-        let chorusVC = TeamChorusViewController()
-        chorusVC.roomID = roomID
+        let chorusVC = TeamChorusViewController(roomID: roomID)
 
         navigationController?.pushViewController(chorusVC, animated: true)
 
