@@ -2,5 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
+  "dolt_server_port": 13313,
   "dolt_database": "switch_chorus_demo"
 }

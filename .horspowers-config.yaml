@@ -1,0 +1,19 @@
+# Horspowers Configuration
+# Version: 1.0
+
+# Development mode: personal or team
+development_mode: personal
+
+# Documentation system
+documentation:
+  enabled: true
+
+# Beads integration
+beads:
+  enabled: true
+
+# Features
+features:
+  auto_commit: true
+  auto_test: true
+  worktree_on_feature: false

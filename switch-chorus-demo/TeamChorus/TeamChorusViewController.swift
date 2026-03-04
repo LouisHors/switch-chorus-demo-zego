@@ -36,6 +36,9 @@ class TeamChorusViewController: UIViewController {
     /// 当前选中的歌曲
     private var currentSong: SongItem?
 
+    /// 伴奏播放器控制器
+    private let accompanimentPlayer = AccompanimentPlayerController()
+
     // MARK: - 初始化
 
     init(roomID: String) {
@@ -57,6 +60,7 @@ class TeamChorusViewController: UIViewController {
         super.viewDidLoad()
         setupCallbacks()
         setupAudioConfig()
+        setupPlayer()
     }
 
     override func viewDidLayoutSubviews() {
@@ -83,6 +87,13 @@ class TeamChorusViewController: UIViewController {
         chorusView.onLeaveButtonTapped = { [weak self] in
             self?.handleLeaveButton()
         }
+    }
+
+    // MARK: - 播放器设置
+
+    private func setupPlayer() {
+        accompanimentPlayer.delegate = self
+        chorusView.playerControlView.delegate = self
     }
 
     // MARK: - 音频配置
@@ -241,6 +252,10 @@ class TeamChorusViewController: UIViewController {
         isPublishing = false
         myTeam = nil
 
+        // 停止播放并重置播放器
+        accompanimentPlayer.stop()
+        chorusView.playerControlView.resetUI()
+
         chorusView.updateMicUpButtonUI(isPublishing: false)
         chorusView.setPickSongButtonEnabled(false)
         chorusView.hideAllTeamAvatars()
@@ -354,6 +369,80 @@ extension TeamChorusViewController: ZegoEventHandler {
     }
 }
 
+// MARK: - AccompanimentPlayerDelegate
+
+extension TeamChorusViewController: AccompanimentPlayerDelegate {
+
+    func player(_ player: AccompanimentPlayerController, didUpdateState state: PlayerState) {
+        DispatchQueue.main.async { [weak self] in
+            switch state {
+            case .playing:
+                self?.chorusView.playerControlView.setButtonStates(isPlaying: true)
+            case .paused, .idle, .ended:
+                self?.chorusView.playerControlView.setButtonStates(isPlaying: false)
+                // 停止时重置进度显示
+                if state == .idle || state == .ended {
+                    self?.chorusView.playerControlView.resetUI()
+                }
+            default:
+                break
+            }
+        }
+    }
+
+    func player(_ player: AccompanimentPlayerController, didUpdateProgress currentTime: TimeInterval, totalTime: TimeInterval) {
+        chorusView.playerControlView.setCurrentTime(currentTime, totalTime: totalTime)
+    }
+
+    func player(_ player: AccompanimentPlayerController, didEncounterError error: PlayerError) {
+        print("[TeamChorus] 播放器错误: \(error)")
+    }
+}
+
+// MARK: - PlayerControlViewDelegate
+
+extension TeamChorusViewController: PlayerControlViewDelegate {
+
+    func playerControlViewDidTapPlay(_ view: PlayerControlView) {
+        switch accompanimentPlayer.currentState {
+        case .idle, .ended:
+            // 重新加载并播放
+            if let song = currentSong {
+                accompanimentPlayer.loadSong(song) { [weak self] result in
+                    switch result {
+                    case .success:
+                        self?.accompanimentPlayer.play()
+                    case .failure(let error):
+                        print("[TeamChorus] 加载歌曲失败: \(error)")
+                    }
+                }
+            }
+        case .ready:
+            accompanimentPlayer.play()
+        case .paused:
+            // 修复：从暂停状态恢复时调用 resume
+            accompanimentPlayer.resume()
+        case .playing:
+            break
+        case .loading:
+            break
+        }
+    }
+
+    func playerControlViewDidTapPause(_ view: PlayerControlView) {
+        accompanimentPlayer.pause()
+    }
+
+    func playerControlViewDidTapStop(_ view: PlayerControlView) {
+        accompanimentPlayer.stop()
+    }
+
+    func playerControlView(_ view: PlayerControlView, didSeekTo progress: Double) {
+        let targetTime = progress * accompanimentPlayer.totalTime
+        accompanimentPlayer.seek(to: targetTime)
+    }
+}
+
 // MARK: - SongPickerDelegate
 
 extension TeamChorusViewController: SongPickerDelegate {
@@ -362,5 +451,22 @@ extension TeamChorusViewController: SongPickerDelegate {
         print("[TeamChorus] 选中歌曲: \(song.name)")
         print("[TeamChorus] 文件路径: \(song.filePath)")
         currentSong = song
+
+        // 更新播放器视图歌曲名称
+        chorusView.playerControlView.setSongName(song.name)
+
+        // 自动加载歌曲
+        accompanimentPlayer.loadSong(song) { [weak self] result in
+            switch result {
+            case .success:
+                print("[TeamChorus] 歌曲加载成功: \(song.name)")
+                // 如果已在推流状态，自动开始播放
+                if self?.isPublishing == true {
+                    self?.accompanimentPlayer.play()
+                }
+            case .failure(let error):
+                print("[TeamChorus] 歌曲加载失败: \(error)")
+            }
+        }
     }
 }

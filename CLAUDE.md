@@ -6,6 +6,99 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Always respond with **Simplified-Chinese/中文**
 
+## Beads 任务追踪 - 全自动化工作流
+
+**核心原则：beads 是 AI 的内部工具，对用户完全透明。用户只需说"做什么"，AI 负责所有管理工作。**
+
+### 完整自动化流程
+
+```
+用户需求→ AI 分析拆分→ 自动创建任务→ 自动分配→ 并行执行→ 自动关闭
+```
+
+### 1. 任务拆分（自动）
+
+当用户提出需求时，AI 必须：
+1. 分析需求复杂度
+2. 如果需要多个步骤，自动拆分成子任务
+3. 创建 Epic（大需求）或 Task（小需求）
+4. 设置任务依赖关系
+
+```bash
+# 示例：用户说"实现歌词同步功能"
+# AI 自动执行：
+bd create --title="集成 ZegoKTV 歌词组件" --type=task
+bd create --title="实现歌词进度同步" --type=task
+bd create --title="添加歌词 UI 展示" --type=task
+bd dep add 歌词UI 组件集成  # UI 依赖组件集成
+```
+
+### 2. 任务分配（自动）
+
+AI 必须判断：
+- 哪些任务可以**并行**（无依赖）
+- 哪些任务必须**串行**（有依赖）
+- 使用 subagent 并行处理独立任务
+
+```bash
+# 并行任务：使用 Task tool 启动多个 subagent
+# 串行任务：按依赖顺序执行
+```
+
+### 3. 任务执行（自动）
+
+| 时机 | 自动操作 |
+|------|----------|
+| 开始实现功能前 | `bd update <id> --status=in_progress` |
+| 发现新的子任务时 | `bd create` 创建并设置依赖 |
+| 完成功能后 | `bd close <id>` |
+| 会话开始时 | 分析 git history，校准 beads 状态 |
+
+### 4. 状态校准逻辑
+
+```
+1. 获取 bd list --status=open
+2. 获取 git log --since="7 days ago"
+3. 对比提交信息与任务描述：
+   - 提交内容涵盖任务 → 关闭任务
+   - 部分完成 → 标记 in_progress
+   - 未开始 → 保持 open
+4. 无需用户确认，直接执行
+```
+
+### 5. 用户视角
+
+- 用户只负责：告诉 AI 做什么
+- AI 负责：分析、拆分、创建、分配、执行、关闭
+- 用户查看：`bd list` 或 `/bd-kanban`
+
+### 6. 强制规则
+
+- **禁止**询问用户是否创建/关闭任务
+- **禁止**等待用户确认后才操作 beads
+- **必须**主动分析并自动执行所有 beads 操作
+
+### 7. Horspowers + Beads 整合
+
+| Horspowers Skill | 产出物 | Beads 操作 |
+|------------------|--------|------------|
+| `/horspowers:brainstorming` | design 文档 | 创建/更新 Epic，填充 design 字段 |
+| `/horspowers:writing-plans` | plan + tasks | 创建 Tasks，设置依赖关系 |
+| `/horspowers:executing-plans` | 更新 task 文档 | 同步更新 Task 状态 |
+| `/horspowers:systematic-debugging` | debug 报告 | 创建 Bug issue |
+| `/horspowers:code-review` | review 报告 | 创建 Review task |
+
+**自动化流程：**
+```
+用户需求→ /brainstorming → bd create epic + design
+                  ↓
+         /writing-plans → bd create tasks + deps
+                  ↓
+        /executing-plans → bd update status
+                  ↓
+               完成→ bd close
+```
+
 ## Project Overview
 
 This is an iOS application built with Swift 5.0 and UIKit, targeting iOS 18.5+.

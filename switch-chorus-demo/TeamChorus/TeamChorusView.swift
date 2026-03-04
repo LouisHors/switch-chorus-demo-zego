@@ -57,25 +57,8 @@ class TeamChorusView: UIView {
         return label
     }()
 
-    /// 播放器区域
-    let playerSectionView: UIView = {
-        let view = UIView()
-        view.layer.cornerRadius = 20
-        view.clipsToBounds = true
-        return view
-    }()
-
-    /// 播放器渐变背景
-    let playerGradientLayer: CAGradientLayer = {
-        let layer = CAGradientLayer()
-        layer.colors = [
-            UIColor(hex: "#EA580C").cgColor,
-            UIColor(hex: "#D97706").cgColor
-        ]
-        layer.startPoint = CGPoint(x: 0, y: 0)
-        layer.endPoint = CGPoint(x: 1, y: 1)
-        return layer
-    }()
+    /// 播放器控制视图
+    let playerControlView = PlayerControlView()
 
     /// 区域标题
     let sectionTitleLabel: UILabel = {
@@ -232,7 +215,7 @@ class TeamChorusView: UIView {
 
         // 禁用 autoresizing（UIView 类型）
         let views: [UIView] = [
-            headerView, backButton, roomTitleLabel, playerSectionView,
+            headerView, backButton, roomTitleLabel, playerControlView,
             sectionTitleLabel, userListContainerView, leftColumnView, rightColumnView,
             leftWaitingLabel, rightWaitingLabel, leftTeamImageView, rightTeamImageView,
             bottomBarView, micButton, pickSongButton, micUpButton, leaveButton
@@ -241,15 +224,13 @@ class TeamChorusView: UIView {
 
         // 添加子视图
         addSubview(headerView)
-        addSubview(playerSectionView)
+        addSubview(playerControlView)
         addSubview(sectionTitleLabel)
         addSubview(userListContainerView)
         addSubview(bottomBarView)
 
         headerView.addSubview(backButton)
         headerView.addSubview(roomTitleLabel)
-
-        playerSectionView.layer.addSublayer(playerGradientLayer)
 
         userListContainerView.addSubview(leftColumnView)
         userListContainerView.addSubview(rightColumnView)
@@ -279,14 +260,14 @@ class TeamChorusView: UIView {
             roomTitleLabel.centerXAnchor.constraint(equalTo: headerView.centerXAnchor),
             roomTitleLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
 
-            // 播放器区域
-            playerSectionView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
-            playerSectionView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            playerSectionView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            playerSectionView.heightAnchor.constraint(equalToConstant: 180),
+            // 播放器控制视图
+            playerControlView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
+            playerControlView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            playerControlView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            playerControlView.heightAnchor.constraint(equalToConstant: 180),
 
             // 区域标题
-            sectionTitleLabel.topAnchor.constraint(equalTo: playerSectionView.bottomAnchor, constant: 16),
+            sectionTitleLabel.topAnchor.constraint(equalTo: playerControlView.bottomAnchor, constant: 16),
             sectionTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
 
             // 用户列表容器
@@ -359,11 +340,6 @@ class TeamChorusView: UIView {
         ])
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        // 更新渐变层 frame
-        playerGradientLayer.frame = playerSectionView.bounds
-    }
 
     // MARK: - 按钮事件绑定
 
