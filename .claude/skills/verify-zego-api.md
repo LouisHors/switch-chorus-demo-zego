@@ -83,6 +83,25 @@ zego.setStreamExtraInfo(info) { errorCode in
 
 ---
 
+### 错误 4：Objective-C 方法名到 Swift 映射错误
+
+```swift
+// ❌ 错误：错误地添加了参数标签
+zego.stopPublishingStream(channel: .aux)  // 编译错误！
+
+// ✅ 正确：Objective-C 的 - (void)stopPublishingStream:(ZegoPublishChannel)channel
+// 在 Swift 中第一个参数没有标签
+zego.stopPublishingStream(.aux)
+```
+
+**原因**：没有理解 ObjC 到 Swift 的方法映射规则
+**教训**：
+- ObjC: `- (void)foo:(Type)param` → Swift: `func foo(_ param: Type)` （无标签）
+- ObjC: `- (void)fooWithParam:(Type)param` → Swift: `func foo(withParam param: Type)` （有标签）
+- 查看头文件时注意方法签名格式
+
+---
+
 ## 📋 配置类属性速查
 
 > 这些配置类的**实际属性**，不要假设有其他属性！
@@ -235,8 +254,8 @@ zego.setStreamAlignmentProperty(1, channel: .main)
 | `engine.startPublishingStream(_:)` | `Void` | ZegoExpressEngine+Publisher.h | 开始推流 |
 | `engine.startPublishingStream(_:config:)` | `Void` | ZegoExpressEngine+Publisher.h | 开始推流(带配置) |
 | `engine.startPublishingStream(_:config:channel:)` | `Void` | ZegoExpressEngine+Publisher.h | 开始推流(带配置和通道) |
-| `engine.stopPublishingStream()` | `Void` | ZegoExpressEngine+Publisher.h | 停止推流 |
-| `engine.stopPublishingStream(channel:)` | `Void` | ZegoExpressEngine+Publisher.h | 停止推流(指定通道) |
+| `engine.stopPublishingStream()` | `Void` | ZegoExpressEngine+Publisher.h:109 | 停止推流 |
+| `engine.stopPublishingStream(_:)` | `Void` | ZegoExpressEngine+Publisher.h:124 | 停止推流(指定通道，⚠️ 注意无参数标签!) |
 | `engine.mutePublishStreamAudio(_:)` | `Void` | ZegoExpressEngine+Publisher.h | 静音推流音频 |
 | `engine.mutePublishStreamAudio(_:channel:)` | `Void` | ZegoExpressEngine+Publisher.h | 静音指定通道 |
 | `engine.setStreamExtraInfo(_:callback:)` | `Void` | ZegoExpressEngine+Publisher.h:137 | 设置流额外信息 |
