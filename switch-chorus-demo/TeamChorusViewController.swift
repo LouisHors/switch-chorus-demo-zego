@@ -23,6 +23,9 @@ class TeamChorusViewController: UIViewController {
     /// 推流状态
     var isPublishing = false
 
+    /// 当前选中的歌曲
+    var currentSong: SongItem?
+
     /// 是否能推流（基于队伍逻辑）
     /// - 0 条流 → 可以上麦（A队）
     /// - 1 条流 → 检查是否已标记 A队，可以上麦（B队）
@@ -459,8 +462,18 @@ class TeamChorusViewController: UIViewController {
 
     /// 点歌按钮点击 - 打开点歌弹窗
     @objc private func pickSongButtonTapped(_ sender: UIButton) {
-        // TODO: 待完成
+        let picker = SongPickerViewController()
+        picker.delegate = self
+        picker.modalPresentationStyle = .pageSheet
 
+        // 配置 sheet 样式
+        if let sheet = picker.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 24
+        }
+
+        present(picker, animated: true)
     }
 
     /// 上麦按钮点击 - 开始推流
@@ -608,6 +621,19 @@ extension TeamChorusViewController: ZegoEventHandler {
     }
     
     func onPlayerSyncRecvSEI(_ data: Data, streamID: String) {
-        
+
+    }
+}
+
+// MARK: - SongPickerDelegate
+extension TeamChorusViewController: SongPickerDelegate {
+    func songPicker(_ picker: SongPickerViewController, didSelectSong song: SongItem) {
+        print("[TeamChorus] 选中歌曲: \(song.name)")
+        print("[TeamChorus] 文件路径: \(song.filePath)")
+
+        // 保存当前选中的歌曲
+        currentSong = song
+
+        // TODO: 后续可以在这里启动媒体播放器播放伴奏
     }
 }
