@@ -41,8 +41,9 @@ class TeamChorusViewController: UIViewController {
 
     /// 检查流列表中是否已有 A队标记
     private func hasTeamAMarked() -> Bool {
+        // API 来源: ZegoExpressDefines.h:2491 - extraInfo 是非 Optional 的 NSString
         for stream in roomStreamList {
-            if let extraInfo = stream.extraInfo, extraInfo.contains("team:A") {
+            if stream.extraInfo.contains("team:A") {
                 return true
             }
         }
