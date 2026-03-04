@@ -188,8 +188,10 @@ class TeamChorusViewController: UIViewController {
         button.setTitle("点歌", for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         button.setTitleColor(AppColors.accentTerracotta, for: .normal)
+        button.setTitleColor(AppColors.textTertiary, for: .disabled)
         button.backgroundColor = AppColors.bgCard
         button.layer.cornerRadius = 12
+        button.isEnabled = false  // 默认不可交互，上麦后才能点歌
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
@@ -549,6 +551,7 @@ class TeamChorusViewController: UIViewController {
 
         // 9. 更新 UI
         updateMicUpButtonUI(isPublishing: true)
+        pickSongButton.isEnabled = true  // 上麦成功后可以点歌
         print("[TeamChorus] 上麦成功，队伍: \(team.rawValue)")
     }
 
@@ -562,6 +565,7 @@ class TeamChorusViewController: UIViewController {
         myTeam = nil
 
         updateMicUpButtonUI(isPublishing: false)
+        pickSongButton.isEnabled = false  // 下麦后不能点歌
         print("[TeamChorus] 下麦成功")
     }
 
