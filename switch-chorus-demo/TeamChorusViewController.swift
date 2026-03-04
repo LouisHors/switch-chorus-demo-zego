@@ -540,8 +540,9 @@ class TeamChorusViewController: UIViewController {
 
     /// 停止推流（下麦）
     private func stopPublishing() {
-        zego.stopPublishingStream()
-        zego.stopPublishingStream(channel: .aux)
+        // API 来源: ZegoExpressEngine+Publisher.h:109, 124
+        zego.stopPublishingStream()      // 停止主通道
+        zego.stopPublishingStream(.aux)  // 停止辅通道（人声复用）
 
         isPublishing = false
         myTeam = nil
