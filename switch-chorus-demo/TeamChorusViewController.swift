@@ -156,6 +156,34 @@ class TeamChorusViewController: UIViewController {
         return view
     }()
 
+    /// 左侧队伍头像（TeamA）
+    private lazy var leftTeamImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.image = UIImage(named: "teamA")
+        imageView.contentMode = .scaleAspectFit
+        imageView.layer.cornerRadius = 5
+        imageView.layer.borderWidth = 2
+        imageView.layer.borderColor = AppColors.borderStrong.cgColor
+        imageView.backgroundColor = AppColors.bgElevated
+        imageView.isHidden = true  // 默认隐藏，有对应队伍才显示
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        return imageView
+    }()
+
+    /// 右侧队伍头像（TeamB）
+    private lazy var rightTeamImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.image = UIImage(named: "teamB")
+        imageView.contentMode = .scaleAspectFit
+        imageView.layer.cornerRadius = 5
+        imageView.layer.borderWidth = 2
+        imageView.layer.borderColor = AppColors.borderStrong.cgColor
+        imageView.backgroundColor = AppColors.bgElevated
+        imageView.isHidden = true  // 默认隐藏，有对应队伍才显示
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        return imageView
+    }()
+
     /// 底部控制栏
     private lazy var bottomBarView: UIView = {
         let view = UIView()
@@ -349,38 +377,113 @@ class TeamChorusViewController: UIViewController {
 
     /// 设置用户头像（每列单个头像）
     private func setupUserAvatars() {
-        // 左侧列头像
-        let leftAvatar = createAvatarView()
-        leftColumnView.addSubview(leftAvatar)
+        // 左侧列头像（TeamA）
+        leftColumnView.addSubview(leftTeamImageView)
         NSLayoutConstraint.activate([
-            leftAvatar.centerXAnchor.constraint(equalTo: leftColumnView.centerXAnchor),
-            leftAvatar.centerYAnchor.constraint(equalTo: leftColumnView.centerYAnchor),
+            leftTeamImageView.centerXAnchor.constraint(equalTo: leftColumnView.centerXAnchor),
+            leftTeamImageView.centerYAnchor.constraint(equalTo: leftColumnView.centerYAnchor),
         ])
 
-        // 右侧列头像
-        let rightAvatar = createAvatarView()
-        rightColumnView.addSubview(rightAvatar)
+        // 右侧列头像（TeamB）
+        rightColumnView.addSubview(rightTeamImageView)
         NSLayoutConstraint.activate([
-            rightAvatar.centerXAnchor.constraint(equalTo: rightColumnView.centerXAnchor),
-            rightAvatar.centerYAnchor.constraint(equalTo: rightColumnView.centerYAnchor),
+            rightTeamImageView.centerXAnchor.constraint(equalTo: rightColumnView.centerXAnchor),
+            rightTeamImageView.centerYAnchor.constraint(equalTo: rightColumnView.centerYAnchor),
         ])
     }
 
-    /// 创建单个头像视图（60x60，圆角5）
-    private func createAvatarView() -> UIView {
-        let avatarView = UIView()
-        avatarView.backgroundColor = AppColors.bgElevated
-        avatarView.layer.cornerRadius = 5
-        avatarView.layer.borderWidth = 2
-        avatarView.layer.borderColor = AppColors.borderStrong.cgColor
-        avatarView.translatesAutoresizingMaskIntoConstraints = false
+    // MARK: - 队伍 UI 更新
 
-        NSLayoutConstraint.activate([
-            avatarView.widthAnchor.constraint(equalToConstant: 60),
-            avatarView.heightAnchor.constraint(equalToConstant: 60),
-        ])
+    /// 更新自己推流成功后的队伍 UI
+    /// - Parameter team: 自己所属的队伍
+    private func updateMyTeamUI(for team: ChorusTeam) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            switch team {
+            case .teamA:
+                self.leftTeamImageView.isHidden = false
+                self.leftTeamImageView.image = UIImage(named: "teamA")
+                print("[TeamChorus] 更新 UI: TeamA 已显示在左侧")
+            case .teamB:
+                self.rightTeamImageView.isHidden = false
+                self.rightTeamImageView.image = UIImage(named: "teamB")
+                print("[TeamChorus] 更新 UI: TeamB 已显示在右侧")
+            }
+        }
+    }
 
-        return avatarView
+    /// 根据流的 extraInfo 判断队伍类型
+    /// - Parameter stream: 流对象
+    /// - Returns: 队伍类型，如果不合法则返回 nil
+    private func getTeamFromStream(_ stream: ZegoStream) -> ChorusTeam? {
+        let extraInfo = stream.extraInfo
+        if extraInfo.contains("team:A") {
+            return .teamA
+        } else if extraInfo.contains("team:B") {
+            return .teamB
+        }
+        return nil
+    }
+
+    /// 拉取指定流并更新对应的队伍 UI
+    /// - Parameters:
+    ///   - stream: 要拉取的流
+    ///   - team: 流所属的队伍
+    private func startPlayingStream(_ stream: ZegoStream, forTeam team: ChorusTeam) {
+        let streamID = stream.streamID
+
+        // API 来源: ZegoExpressEngine+Player.h:62 - 纯音频拉流
+        zego.startPlayingStream(streamID)
+
+        // 更新对应的队伍 UI
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            switch team {
+            case .teamA:
+                self.leftTeamImageView.isHidden = false
+                self.leftTeamImageView.image = UIImage(named: "teamA")
+                print("[TeamChorus] 拉流成功: TeamA (\(streamID)) 已显示在左侧")
+            case .teamB:
+                self.rightTeamImageView.isHidden = false
+                self.rightTeamImageView.image = UIImage(named: "teamB")
+                print("[TeamChorus] 拉流成功: TeamB (\(streamID)) 已显示在右侧")
+            }
+        }
+    }
+
+    /// 停止拉取指定流并清除对应的队伍 UI
+    /// - Parameters:
+    ///   - stream: 要停止的流
+    ///   - team: 流所属的队伍
+    private func stopPlayingStream(_ stream: ZegoStream, forTeam team: ChorusTeam) {
+        let streamID = stream.streamID
+
+        // API 来源: ZegoExpressEngine+Player.h:148
+        zego.stopPlayingStream(streamID)
+
+        // 清除对应的队伍 UI
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            switch team {
+            case .teamA:
+                self.leftTeamImageView.isHidden = true
+                print("[TeamChorus] 停止拉流: TeamA (\(streamID)) 已从左侧移除")
+            case .teamB:
+                self.rightTeamImageView.isHidden = true
+                print("[TeamChorus] 停止拉流: TeamB (\(streamID)) 已从右侧移除")
+            }
+        }
+    }
+
+    /// 隐藏自己的队伍头像（下麦时调用）
+    private func hideMyTeamAvatar() {
+        // 两个头像都隐藏，恢复初始状态
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.leftTeamImageView.isHidden = true
+            self.rightTeamImageView.isHidden = true
+            print("[TeamChorus] 已隐藏所有队伍头像")
+        }
     }
 
     // MARK: - 按钮事件绑定
@@ -552,6 +655,7 @@ class TeamChorusViewController: UIViewController {
         // 9. 更新 UI
         updateMicUpButtonUI(isPublishing: true)
         pickSongButton.isEnabled = true  // 上麦成功后可以点歌
+        updateMyTeamUI(for: team)        // 更新自己的队伍头像
         print("[TeamChorus] 上麦成功，队伍: \(team.rawValue)")
     }
 
@@ -561,11 +665,14 @@ class TeamChorusViewController: UIViewController {
         zego.stopPublishingStream()      // 停止主通道
         zego.stopPublishingStream(.aux)  // 停止辅通道（人声复用）
 
+
         isPublishing = false
         myTeam = nil
 
         updateMicUpButtonUI(isPublishing: false)
         pickSongButton.isEnabled = false  // 下麦后不能点歌
+
+        hideMyTeamAvatar()                // 隐藏自己的队伍头像
         print("[TeamChorus] 下麦成功")
     }
 
@@ -604,19 +711,40 @@ extension TeamChorusViewController: ZegoEventHandler {
     }
     
     func onRoomStreamUpdate(_ updateType: ZegoUpdateType, streamList: [ZegoStream], extendedData: [AnyHashable : Any]?, roomID: String) {
-        if updateType == .add {
-            if roomStreamList.count > 2 {
-                print("当前房间内已经记录过两条流，不做其他操作，可能出现了其他问题\n")
-                print("")
+        switch updateType {
+        case .add:
+            // 限制最多 2 条流
+            if roomStreamList.count >= 2 {
+                print("[TeamChorus] 房间内已有 2 条流，忽略新增流")
                 return
             }
-            streamList.forEach { stream in
+
+            for stream in streamList {
+                // 判断是否是合法的流（包含 team:A 或 team:B）
+                guard let team = getTeamFromStream(stream) else {
+                    print("[TeamChorus] 流 \(stream.streamID) 的 extraInfo 不合法: \(stream.extraInfo)")
+                    continue
+                }
+
+                // 记录流
                 roomStreamList.insert(stream)
+
+                // 拉流并更新 UI
+                startPlayingStream(stream, forTeam: team)
             }
-        }else {
-            streamList.forEach { stream in
+
+        case .delete:
+            for stream in streamList {
+                // 从记录中移除
                 roomStreamList.remove(stream)
+
+                // 判断队伍并停止拉流
+                if let team = getTeamFromStream(stream) {
+                    stopPlayingStream(stream, forTeam: team)
+                }
             }
+        default:
+            break
         }
     }
     
