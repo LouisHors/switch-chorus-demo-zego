@@ -137,6 +137,16 @@ zego.stopPublishingStream(.aux)
 | isUserStatusNotify | Bool | 用户状态通知 |
 | maxMemberCount | Int | 最大成员数 |
 
+### ZegoStream (ZegoExpressDefines.h:2482)
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| streamID | String (非Optional) | 流 ID |
+| extraInfo | String (非Optional) | 流额外信息 |
+| user | ZegoUser | 用户对象 |
+
+**⚠️ 注意：extraInfo 是非 Optional 的 String！**
+
 ---
 
 | 字段 | 值 | 来源 |
