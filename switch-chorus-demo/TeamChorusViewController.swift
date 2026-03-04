@@ -156,6 +156,30 @@ class TeamChorusViewController: UIViewController {
         return view
     }()
 
+    /// 左侧"待上麦"提示标签
+    private lazy var leftWaitingLabel: UILabel = {
+        let label = UILabel()
+        label.text = "待上麦"
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = AppColors.textTertiary
+        label.textAlignment = .center
+        label.isHidden = false  // 默认显示
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
+    /// 右侧"待上麦"提示标签
+    private lazy var rightWaitingLabel: UILabel = {
+        let label = UILabel()
+        label.text = "待上麦"
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = AppColors.textTertiary
+        label.textAlignment = .center
+        label.isHidden = false  // 默认显示
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     /// 左侧队伍头像（TeamA）
     private lazy var leftTeamImageView: UIImageView = {
         let imageView = UIImageView()
@@ -377,18 +401,24 @@ class TeamChorusViewController: UIViewController {
 
     /// 设置用户头像（每列单个头像）
     private func setupUserAvatars() {
-        // 左侧列头像（TeamA）
+        // 左侧列： 待上麦标签 + 队伍头像
+        leftColumnView.addSubview(leftWaitingLabel)
         leftColumnView.addSubview(leftTeamImageView)
         NSLayoutConstraint.activate([
+            leftWaitingLabel.centerXAnchor.constraint(equalTo: leftColumnView.centerXAnchor),
+            leftWaitingLabel.centerYAnchor.constraint(equalTo: leftColumnView.centerYAnchor),
             leftTeamImageView.centerXAnchor.constraint(equalTo: leftColumnView.centerXAnchor),
             leftTeamImageView.centerYAnchor.constraint(equalTo: leftColumnView.centerYAnchor),
             leftTeamImageView.widthAnchor.constraint(equalToConstant: 60),
             leftTeamImageView.heightAnchor.constraint(equalToConstant: 60),
         ])
 
-        // 右侧列头像（TeamB）
+        // 右侧列: 待上麦标签 + 队伍头像
+        rightColumnView.addSubview(rightWaitingLabel)
         rightColumnView.addSubview(rightTeamImageView)
         NSLayoutConstraint.activate([
+            rightWaitingLabel.centerXAnchor.constraint(equalTo: rightColumnView.centerXAnchor),
+            rightWaitingLabel.centerYAnchor.constraint(equalTo: rightColumnView.centerYAnchor),
             rightTeamImageView.centerXAnchor.constraint(equalTo: rightColumnView.centerXAnchor),
             rightTeamImageView.centerYAnchor.constraint(equalTo: rightColumnView.centerYAnchor),
             rightTeamImageView.widthAnchor.constraint(equalToConstant: 60),
@@ -405,10 +435,12 @@ class TeamChorusViewController: UIViewController {
             guard let self = self else { return }
             switch team {
             case .teamA:
+                self.leftWaitingLabel.isHidden = true   // 鿐藏"待上麦"标签
                 self.leftTeamImageView.isHidden = false
                 self.leftTeamImageView.image = UIImage(named: "teamA")
                 print("[TeamChorus] 更新 UI: TeamA 已显示在左侧")
             case .teamB:
+                self.rightWaitingLabel.isHidden = true   // 隐藏"待上麦"标签
                 self.rightTeamImageView.isHidden = false
                 self.rightTeamImageView.image = UIImage(named: "teamB")
                 print("[TeamChorus] 更新 UI: TeamB 已显示在右侧")
@@ -444,10 +476,12 @@ class TeamChorusViewController: UIViewController {
             guard let self = self else { return }
             switch team {
             case .teamA:
+                self.leftWaitingLabel.isHidden = true    // 隐藏"待上麦"标签
                 self.leftTeamImageView.isHidden = false
                 self.leftTeamImageView.image = UIImage(named: "teamA")
                 print("[TeamChorus] 拉流成功: TeamA (\(streamID)) 已显示在左侧")
             case .teamB:
+                self.rightWaitingLabel.isHidden = true    // 隐藏"待上麦"标签
                 self.rightTeamImageView.isHidden = false
                 self.rightTeamImageView.image = UIImage(named: "teamB")
                 print("[TeamChorus] 拉流成功: TeamB (\(streamID)) 已显示在右侧")
@@ -471,9 +505,11 @@ class TeamChorusViewController: UIViewController {
             switch team {
             case .teamA:
                 self.leftTeamImageView.isHidden = true
+                self.leftWaitingLabel.isHidden = false  // 显示"待上麦"标签
                 print("[TeamChorus] 停止拉流: TeamA (\(streamID)) 已从左侧移除")
             case .teamB:
                 self.rightTeamImageView.isHidden = true
+                self.rightWaitingLabel.isHidden = false  // 显示"待上麦"标签
                 print("[TeamChorus] 停止拉流: TeamB (\(streamID)) 已从右侧移除")
             }
         }
@@ -486,7 +522,9 @@ class TeamChorusViewController: UIViewController {
             guard let self = self else { return }
             self.leftTeamImageView.isHidden = true
             self.rightTeamImageView.isHidden = true
-            print("[TeamChorus] 已隐藏所有队伍头像")
+            self.leftWaitingLabel.isHidden = false   // 恢复显示"待上麦"
+            self.rightWaitingLabel.isHidden = false  // 恢复显示"待上麦"
+            print("[TeamChorus] 已隐藏所有队伍头像，恢复\"待上麦\"标签")
         }
     }
 
