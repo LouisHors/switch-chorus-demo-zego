@@ -382,6 +382,8 @@ class TeamChorusViewController: UIViewController {
         NSLayoutConstraint.activate([
             leftTeamImageView.centerXAnchor.constraint(equalTo: leftColumnView.centerXAnchor),
             leftTeamImageView.centerYAnchor.constraint(equalTo: leftColumnView.centerYAnchor),
+            leftTeamImageView.widthAnchor.constraint(equalToConstant: 60),
+            leftTeamImageView.heightAnchor.constraint(equalToConstant: 60),
         ])
 
         // 右侧列头像（TeamB）
@@ -389,6 +391,8 @@ class TeamChorusViewController: UIViewController {
         NSLayoutConstraint.activate([
             rightTeamImageView.centerXAnchor.constraint(equalTo: rightColumnView.centerXAnchor),
             rightTeamImageView.centerYAnchor.constraint(equalTo: rightColumnView.centerYAnchor),
+            rightTeamImageView.widthAnchor.constraint(equalToConstant: 60),
+            rightTeamImageView.heightAnchor.constraint(equalToConstant: 60),
         ])
     }
 
