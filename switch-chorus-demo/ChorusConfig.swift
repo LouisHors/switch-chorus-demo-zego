@@ -132,20 +132,6 @@ struct ChorusConstants {
     static let accompanimentAudioBitrate: UInt = 128
 }
 
-// MARK: - 设计颜色常量
-struct AppColors {
-    static let bgPage = UIColor(hex: "#FAFAF9")
-    static let bgCard = UIColor(hex: "#F1F1F1")
-    static let bgElevated = UIColor(hex: "#FFFFFF")
-    static let textPrimary = UIColor(hex: "#292524")
-    static let textSecondary = UIColor(hex: "#78716C")
-    static let textTertiary = UIColor(hex: "#A8A29E")
-    static let accentTerracotta = UIColor(hex: "#EA580C")
-    static let textOnAccent = UIColor(hex: "#FFFFFF")
-    static let borderStrong = UIColor(hex: "#D6D3D1")
-    static let borderSubtle = UIColor(hex: "#E7E5E4")
-}
-
 // MARK: - UIColor 扩展（支持十六进制颜色）
 extension UIColor {
     convenience init(hex: String) {
