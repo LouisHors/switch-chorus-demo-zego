@@ -39,6 +39,9 @@ class TeamChorusViewController: UIViewController {
     /// 伴奏播放器控制器
     private let accompanimentPlayer = AccompanimentPlayerController()
 
+    /// SEI 同步管理器
+    private lazy var seiSyncManager = ChorusSEISyncManager(zego: zego, channel: .main)
+
     // MARK: - 初始化
 
     init(roomID: String) {
@@ -207,7 +210,7 @@ class TeamChorusViewController: UIViewController {
         zego.setStreamAlignmentProperty(1, channel: .aux)
 
         // 2. 配置推流参数
-        var config = ZegoPublisherConfig()
+        let config = ZegoPublisherConfig()
         config.forceSynchronousNetworkTime = 1
 
         // 3. 生成流 ID
@@ -241,6 +244,11 @@ class TeamChorusViewController: UIViewController {
             chorusView.showTeamB()
         }
 
+        // 10. 配置 SEI 同步管理器
+        seiSyncManager.setTeam(team)
+        seiSyncManager.setSong(currentSong)
+        seiSyncManager.setIsSinging(accompanimentPlayer.currentState == .playing)
+
         print("[TeamChorus] 上麦成功，队伍: \(team.rawValue)")
     }
 
@@ -256,6 +264,12 @@ class TeamChorusViewController: UIViewController {
         accompanimentPlayer.stop()
         chorusView.playerControlView.resetUI()
 
+        // 重置 SEI 同步管理器（包括切换状态）
+        seiSyncManager.reset()
+        localPickSongTimestamp = 0
+        effectiveSong = nil
+        isMutedByCompetition = false
+
         chorusView.updateMicUpButtonUI(isPublishing: false)
         chorusView.setPickSongButtonEnabled(false)
         chorusView.hideAllTeamAvatars()
@@ -264,6 +278,15 @@ class TeamChorusViewController: UIViewController {
     }
 
     // MARK: - 拉流逻辑
+
+    /// 点歌时间戳（毫秒）- 本地点歌时间，用于竞争判断
+    private var localPickSongTimestamp: UInt64 = 0
+
+    /// 当前生效的歌曲（经过竞争判断后的）
+    private var effectiveSong: SongItem?
+
+    /// 是否因点歌竞争失败而静音
+    private var isMutedByCompetition = false
 
     private func getTeamFromStream(_ stream: ZegoStream) -> ChorusTeam? {
         let extraInfo = stream.extraInfo
@@ -278,6 +301,12 @@ class TeamChorusViewController: UIViewController {
     private func startPlayingStream(_ stream: ZegoStream, forTeam team: ChorusTeam) {
         let streamID = stream.streamID
 
+        // 1. 配置拉流对齐（全局设置，对所有拉流生效）
+        // 与推流端的 setStreamAlignmentProperty 成对使用
+        // API 来源: ZegoExpressEngine+Player.h:420
+        zego.setPlayStreamsAlignmentProperty(.try)
+
+        // 2. 开始拉流
         // API 来源: ZegoExpressEngine+Player.h:62
         zego.startPlayingStream(streamID)
 
@@ -365,7 +394,156 @@ extension TeamChorusViewController: ZegoEventHandler {
     }
 
     func onPlayerSyncRecvSEI(_ data: Data, streamID: String) {
-        // SEI 进度同步（待实现）
+        // 1. 解析 SEI 数据
+        guard let seiData = ChorusSEIParser.parse(data) else {
+            print("[SEI] 解析 SEI 数据失败: \(streamID)")
+            return
+        }
+
+        // 临时日志：打印接收到的 SEI 内容
+        print("[SEI] ⬅️ 接收 from \(streamID): song=\(seiData.currentSong), progress=\(seiData.currentProgress)ms, total=\(seiData.totalDuration)ms, isSinging=\(seiData.isSinging), team=\(seiData.currentTeam), pickTS=\(seiData.pickSongTimestamp), switchTS=\(seiData.switchTimeStamp)")
+
+        // 2. 判断当前角色：推流用户 vs 观众
+        if isPublishing {
+            handleSEIForPublisher(seiData, fromStreamID: streamID)
+        } else {
+            handleSEIForAudience(seiData, fromStreamID: streamID)
+        }
+    }
+
+    // MARK: - SEI 处理（推流用户）
+
+    /// 处理推流用户收到的 SEI
+    /// 主要逻辑：点歌竞争判断、进度对齐、切换时间戳同步
+    private func handleSEIForPublisher(_ seiData: ChorusSEIData, fromStreamID: String) {
+        // 1. 点歌竞争判断
+        // 如果对方点歌时间戳更早，且歌曲不同，则需要切换到对方的歌曲
+        if seiData.pickSongTimestamp > 0 &&
+           seiData.pickSongTimestamp < localPickSongTimestamp &&
+           seiData.currentSong != effectiveSong?.name {
+
+            print("[SEI] 点歌竞争失败，切换到对方歌曲: \(seiData.currentSong)")
+
+            // 取消本地点歌，切换到对方歌曲
+            handleLostSongCompetition(seiData: seiData)
+            return
+        }
+
+        // 2. 同步切换时间戳（以 isSinging=true 的用户为准）
+        // 如果对方正在唱歌且设置了切换时间戳，则采用对方的切换时间戳
+        if seiData.isSinging &&
+           seiData.switchTimeStamp > 0 &&
+           seiSyncManager.switchTimeStamp == 0 {
+            print("[SEI] 同步切换时间戳: \(seiData.switchTimeStamp)ms")
+            seiSyncManager.setSwitchTimeStamp(seiData.switchTimeStamp)
+        }
+
+        // 3. 如果歌曲一致，进行进度对齐
+        if seiData.currentSong == effectiveSong?.name {
+            alignPlaybackProgress(seiData: seiData)
+        }
+    }
+
+    /// 处理点歌竞争失败
+    private func handleLostSongCompetition(seiData: ChorusSEIData) {
+        // 1. 静音两个通道（因为当前不是唱歌的人）
+        if !isMutedByCompetition {
+            zego.mutePublishStreamAudio(true)
+            zego.mutePublishStreamAudio(true, channel: .aux)
+            isMutedByCompetition = true
+            seiSyncManager.setIsSinging(false)
+            print("[SEI] 竞争失败，已静音")
+        }
+
+        // 2. 更新 SEI 管理器的歌曲信息（保持同步）
+        seiSyncManager.setIsSinging(false)
+    }
+
+    /// 对齐播放进度
+    private func alignPlaybackProgress(seiData: ChorusSEIData) {
+        let localProgressMs = UInt64(accompanimentPlayer.currentTime * 1000)
+        let remoteProgressMs = seiData.currentProgress
+
+        // 如果进度差超过 100ms，进行对齐
+        if ChorusSEIParser.needsAlignment(
+            localProgress: localProgressMs,
+            remoteProgress: remoteProgressMs,
+            threshold: 100
+        ) {
+            let targetTime = TimeInterval(remoteProgressMs) / 1000.0
+            print("[SEI] 进度对齐: 本地 \(localProgressMs)ms -> 远程 \(remoteProgressMs)ms")
+            accompanimentPlayer.seek(to: targetTime)
+        }
+    }
+
+    // MARK: - 队伍切换逻辑
+
+    /// 检查并执行队伍切换
+    /// - Parameter currentProgressMs: 当前播放进度（毫秒）
+    private func checkAndPerformTeamSwitch(currentProgressMs: UInt64) {
+        // 只有推流用户才需要处理切换
+        guard isPublishing else { return }
+
+        // 检查是否需要切换
+        guard seiSyncManager.shouldSwitch(currentProgress: currentProgressMs) else { return }
+
+        print("[Switch] 到达切换时间点: \(currentProgressMs)ms >= \(seiSyncManager.switchTimeStamp)ms")
+
+        // 执行切换：切换 isSinging 状态和 mute 状态
+        performTeamSwitch()
+    }
+
+    /// 执行队伍切换
+    private func performTeamSwitch() {
+        // 1. 切换 isSinging 状态
+        seiSyncManager.toggleSingingState()
+        let newIsSinging = seiSyncManager.isSinging
+
+        // 2. 根据 isSinging 状态更新 mute 状态
+        // isSinging: true -> mute: false (不静音，正常推流)
+        // isSinging: false -> mute: true (静音)
+        zego.mutePublishStreamAudio(!newIsSinging)
+        zego.mutePublishStreamAudio(!newIsSinging, channel: .aux)
+
+        print("[Switch] 队伍切换完成: isSinging=\(newIsSinging), mute=\(!newIsSinging)")
+
+        // 3. 标记切换已完成（确保只切换一次）
+        seiSyncManager.markAsSwitched()
+    }
+
+    // MARK: - SEI 处理（观众）
+
+    /// 处理观众收到的 SEI
+    /// 主要逻辑：判断谁在唱歌，同步歌曲信息和进度
+    private func handleSEIForAudience(_ seiData: ChorusSEIData, fromStreamID: String) {
+        // 观众端只处理 isSinging 为 true 的 SEI
+        guard seiData.isSinging else { return }
+
+        // 1. 同步歌曲信息
+        if seiData.currentSong != effectiveSong?.name {
+            print("[SEI] 观众同步歌曲: \(seiData.currentSong)")
+            // 更新本地歌曲显示（UI 层）
+            DispatchQueue.main.async { [weak self] in
+                self?.chorusView.playerControlView.setSongName(seiData.currentSong)
+            }
+        }
+
+        // 2. 同步进度显示（观众本地可以显示进度，但不实际播放音频）
+        let currentTime = TimeInterval(seiData.currentProgress) / 1000.0
+        let totalTime = TimeInterval(seiData.totalDuration) / 1000.0
+
+        DispatchQueue.main.async { [weak self] in
+            self?.chorusView.playerControlView.setCurrentTime(currentTime, totalTime: totalTime)
+        }
+
+        // 3. 同步切换时间戳（以 isSinging=true 的用户为准）
+        if seiData.switchTimeStamp > 0 && seiSyncManager.switchTimeStamp == 0 {
+            print("[SEI] 观众同步切换时间戳: \(seiData.switchTimeStamp)ms")
+            seiSyncManager.setSwitchTimeStamp(seiData.switchTimeStamp)
+        }
+
+        // 4. 记录当前生效的歌曲
+        effectiveSong = SongItem(name: seiData.currentSong, filePath: "")
     }
 }
 
@@ -375,14 +553,18 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
 
     func player(_ player: AccompanimentPlayerController, didUpdateState state: PlayerState) {
         DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             switch state {
             case .playing:
-                self?.chorusView.playerControlView.setButtonStates(isPlaying: true)
+                self.chorusView.playerControlView.setButtonStates(isPlaying: true)
+                self.seiSyncManager.setIsSinging(true)
             case .paused, .idle, .ended:
-                self?.chorusView.playerControlView.setButtonStates(isPlaying: false)
+                self.chorusView.playerControlView.setButtonStates(isPlaying: false)
+                self.seiSyncManager.setIsSinging(false)
                 // 停止时重置进度显示
                 if state == .idle || state == .ended {
-                    self?.chorusView.playerControlView.resetUI()
+                    self.chorusView.playerControlView.resetUI()
                 }
             default:
                 break
@@ -392,6 +574,18 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
 
     func player(_ player: AccompanimentPlayerController, didUpdateProgress currentTime: TimeInterval, totalTime: TimeInterval) {
         chorusView.playerControlView.setCurrentTime(currentTime, totalTime: totalTime)
+
+        let currentProgressMs = UInt64(currentTime * 1000)
+
+        // 检查并执行队伍切换（仅在推流中状态下）
+        if isPublishing {
+            checkAndPerformTeamSwitch(currentProgressMs: currentProgressMs)
+        }
+
+        // 发送 SEI 进度同步（仅在推流中状态下）
+        if isPublishing {
+            seiSyncManager.syncWithPlayer(player)
+        }
     }
 
     func player(_ player: AccompanimentPlayerController, didEncounterError error: PlayerError) {
@@ -438,7 +632,8 @@ extension TeamChorusViewController: PlayerControlViewDelegate {
     }
 
     func playerControlView(_ view: PlayerControlView, didSeekTo progress: Double) {
-        let targetTime = progress * accompanimentPlayer.totalTime
+        // 使用缓存的总时长计算目标时间
+        let targetTime = progress * accompanimentPlayer.cachedTotalTime
         accompanimentPlayer.seek(to: targetTime)
     }
 }
@@ -447,19 +642,40 @@ extension TeamChorusViewController: PlayerControlViewDelegate {
 
 extension TeamChorusViewController: SongPickerDelegate {
 
-    func songPicker(_ picker: SongPickerViewController, didSelectSong song: SongItem) {
-        print("[TeamChorus] 选中歌曲: \(song.name)")
+    func songPicker(_ picker: SongPickerViewController, didSelectSong song: SongItem, timestamp: UInt64) {
+        print("[TeamChorus] 选中歌曲: \(song.name), 时间戳: \(timestamp)")
         print("[TeamChorus] 文件路径: \(song.filePath)")
-        currentSong = song
 
-        // 更新播放器视图歌曲名称
+        // 1. 记录本地点歌时间戳
+        localPickSongTimestamp = timestamp
+
+        // 2. 设置当前歌曲
+        currentSong = song
+        effectiveSong = song
+
+        // 3. 更新 SEI 同步管理器的歌曲信息和点歌时间戳
+        seiSyncManager.setSong(song)
+        seiSyncManager.setPickSongTimestamp(timestamp)
+
+        // 4. 重置竞争静音状态
+        isMutedByCompetition = false
+
+        // 5. 更新 UI
         chorusView.playerControlView.setSongName(song.name)
 
-        // 自动加载歌曲
+        // 6. 自动加载歌曲
         accompanimentPlayer.loadSong(song) { [weak self] result in
             switch result {
             case .success:
                 print("[TeamChorus] 歌曲加载成功: \(song.name)")
+
+                // 生成切换时间戳（总时长/2 ± 10000ms 随机偏移）
+                let totalDurationMs = UInt64(self?.accompanimentPlayer.cachedTotalTime ?? 0) * 1000
+                if totalDurationMs > 0 {
+                    let switchTime = self?.seiSyncManager.generateSwitchTimeStamp(totalDuration: totalDurationMs)
+                    print("[TeamChorus] 生成切换时间戳: \(switchTime ?? 0)ms")
+                }
+
                 // 如果已在推流状态，自动开始播放
                 if self?.isPublishing == true {
                     self?.accompanimentPlayer.play()
