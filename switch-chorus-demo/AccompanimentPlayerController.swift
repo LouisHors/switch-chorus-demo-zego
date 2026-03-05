@@ -41,6 +41,9 @@ class AccompanimentPlayerController: NSObject {
     private var mediaPlayer: ZegoMediaPlayer?
     private var currentSong: SongItem?
 
+    /// 缓存的歌曲总时长（秒）- 在 load 成功后获取，避免频繁调用同步耗时方法
+    private(set) var cachedTotalTime: TimeInterval = 0
+
     // MARK: - 生命周期
     override init() {
         super.init()
@@ -80,8 +83,9 @@ extension AccompanimentPlayerController {
         currentSong = song
         updateState(.loading)
 
-        // 先停止当前播放
+        // 先停止当前播放并重置缓存
         player.stop()
+        cachedTotalTime = 0
 
         // 加载资源
         player.loadResource(song.filePath) { [weak self] errorCode in
@@ -89,9 +93,12 @@ extension AccompanimentPlayerController {
 
             DispatchQueue.main.async {
                 if errorCode == 0 {
+                    // 缓存总时长，避免频繁调用同步耗时方法
+                    self.cachedTotalTime = TimeInterval(player.totalDuration()) / 1000.0
                     self.updateState(.ready)
                     completion?(.success(()))
                 } else {
+                    self.cachedTotalTime = 0
                     self.updateState(.idle)
                     completion?(.failure(.loadFailed(errorCode)))
                 }
@@ -120,6 +127,7 @@ extension AccompanimentPlayerController {
     func stop() {
         guard let player = mediaPlayer else { return }
         player.stop()
+        cachedTotalTime = 0  // 重置缓存时长
         updateState(.idle)
     }
 

@@ -16,7 +16,12 @@ struct SongItem {
 
 // MARK: - 歌曲选择代理
 protocol SongPickerDelegate: AnyObject {
-    func songPicker(_ picker: SongPickerViewController, didSelectSong song: SongItem)
+    /// 选择歌曲回调
+    /// - Parameters:
+    ///   - picker: 歌曲选择器
+    ///   - song: 选中的歌曲
+    ///   - timestamp: 点歌时间戳（毫秒），用于解决同时点歌的竞争问题
+    func songPicker(_ picker: SongPickerViewController, didSelectSong song: SongItem, timestamp: UInt64)
 }
 
 // MARK: - 歌曲选择器控制器
@@ -148,7 +153,9 @@ extension SongPickerViewController: UITableViewDataSource {
         cell.configure(with: song)
         cell.onConfirmTapped = { [weak self] in
             guard let self = self else { return }
-            self.delegate?.songPicker(self, didSelectSong: song)
+            // 记录点歌时间戳（毫秒），用于解决同时点歌的竞争问题
+            let timestamp = UInt64(Date().timeIntervalSince1970 * 1000)
+            self.delegate?.songPicker(self, didSelectSong: song, timestamp: timestamp)
             self.dismiss(animated: true)
         }
         return cell
