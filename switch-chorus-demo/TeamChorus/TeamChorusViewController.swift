@@ -105,6 +105,14 @@ class TeamChorusViewController: UIViewController {
         chorusView.playerControlView.delegate = self
     }
 
+    /// 更新播放控制按钮的显示状态
+    /// 规则：只有推流用户且 isSinging 为 true 时才显示控制按钮
+    private func updatePlayerControlVisibility() {
+        let shouldShowControls = isPublishing && seiSyncManager.isSinging
+        chorusView.playerControlView.setControlsHidden(!shouldShowControls)
+        print("[UI] 播放控制按钮: \(shouldShowControls ? "显示" : "隐藏") (isPublishing=\(isPublishing), isSinging=\(seiSyncManager.isSinging))")
+    }
+
     // MARK: - 音频配置
 
     private func setupAudioConfig() {
@@ -284,6 +292,9 @@ class TeamChorusViewController: UIViewController {
         seiSyncManager.setSong(currentSong)
         seiSyncManager.setIsSinging(accompanimentPlayer.currentState == .playing)
 
+        // 11. 更新播放控制按钮可见性
+        updatePlayerControlVisibility()
+
         print("[TeamChorus] 上麦成功，队伍: \(team.rawValue)")
     }
 
@@ -308,6 +319,9 @@ class TeamChorusViewController: UIViewController {
         chorusView.updateMicUpButtonUI(isPublishing: false)
         chorusView.setPickSongButtonEnabled(false)
         chorusView.hideAllTeamAvatars()
+
+        // 更新播放控制按钮可见性（观众隐藏按钮）
+        updatePlayerControlVisibility()
 
         print("[TeamChorus] 下麦成功")
     }
@@ -656,6 +670,9 @@ extension TeamChorusViewController: ZegoEventHandler {
 
         // 3. 更新 SEI 管理器的歌曲信息（保持同步）
         seiSyncManager.setIsSinging(false)
+
+        // 4. 更新播放控制按钮可见性（竞争失败者隐藏按钮）
+        updatePlayerControlVisibility()
     }
 
     /// 对齐播放进度
@@ -731,7 +748,10 @@ extension TeamChorusViewController: ZegoEventHandler {
 
         print("[Switch] 队伍切换完成: isSinging=\(newIsSinging), mute=\(!newIsSinging)")
 
-        // 5. 标记切换已完成（确保只切换一次）
+        // 5. 更新播放控制按钮可见性
+        updatePlayerControlVisibility()
+
+        // 6. 标记切换已完成（确保只切换一次）
         seiSyncManager.markAsSwitched()
     }
 
@@ -788,11 +808,11 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
 
             switch state {
             case .playing:
-                self.chorusView.playerControlView.setButtonStates(isPlaying: true)
                 self.seiSyncManager.setIsSinging(true)
+                self.updatePlayerControlVisibility()
             case .paused, .idle, .ended:
-                self.chorusView.playerControlView.setButtonStates(isPlaying: false)
                 self.seiSyncManager.setIsSinging(false)
+                self.updatePlayerControlVisibility()
                 // 停止时重置进度显示
                 // 注意：.idle 状态可能是加载新歌时调用 stop() 触发的，需要判断是否正在加载
                 print("[Player] 状态变化: \(state), isLoadingSong: \(self.accompanimentPlayer.isLoadingSong)")
@@ -839,36 +859,6 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
 // MARK: - PlayerControlViewDelegate
 
 extension TeamChorusViewController: PlayerControlViewDelegate {
-
-    func playerControlViewDidTapPlay(_ view: PlayerControlView) {
-        switch accompanimentPlayer.currentState {
-        case .idle, .ended:
-            // 重新加载并播放
-            if let song = currentSong {
-                accompanimentPlayer.loadSong(song) { [weak self] result in
-                    switch result {
-                    case .success:
-                        self?.accompanimentPlayer.play()
-                    case .failure(let error):
-                        print("[TeamChorus] 加载歌曲失败: \(error)")
-                    }
-                }
-            }
-        case .ready:
-            accompanimentPlayer.play()
-        case .paused:
-            // 修复：从暂停状态恢复时调用 resume
-            accompanimentPlayer.resume()
-        case .playing:
-            break
-        case .loading:
-            break
-        }
-    }
-
-    func playerControlViewDidTapPause(_ view: PlayerControlView) {
-        accompanimentPlayer.pause()
-    }
 
     func playerControlViewDidTapStop(_ view: PlayerControlView) {
         accompanimentPlayer.stop()

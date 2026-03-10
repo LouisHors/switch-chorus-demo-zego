@@ -10,8 +10,6 @@ import UIKit
 
 // MARK: - 委托协议
 protocol PlayerControlViewDelegate: AnyObject {
-    func playerControlViewDidTapPlay(_ view: PlayerControlView)
-    func playerControlViewDidTapPause(_ view: PlayerControlView)
     func playerControlViewDidTapStop(_ view: PlayerControlView)
     func playerControlView(_ view: PlayerControlView, didSeekTo progress: Double)
 }
@@ -27,8 +25,6 @@ class PlayerControlView: UIView {
     private let songNameLabel = UILabel()
     private let timeLabel = UILabel()
     private let progressSlider = UISlider()
-    private let playButton = UIButton()
-    private let pauseButton = UIButton()
     private let stopButton = UIButton()
 
     // MARK: - 状态
@@ -138,63 +134,26 @@ class PlayerControlView: UIView {
     }
 
     private func setupButtons() {
-        // 播放按钮
-        playButton.translatesAutoresizingMaskIntoConstraints = false
-        playButton.setImage(UIImage(systemName: "play.fill"), for: .normal)
-        playButton.tintColor = .white
-        playButton.backgroundColor = .white.withAlphaComponent(0.15)
-        playButton.layer.cornerRadius = 20
-        playButton.addTarget(self, action: #selector(playButtonTapped), for: .touchUpInside)
-        containerView.addSubview(playButton)
-
-        // 暂停按钮
-        pauseButton.translatesAutoresizingMaskIntoConstraints = false
-        pauseButton.setImage(UIImage(systemName: "pause.fill"), for: .normal)
-        pauseButton.tintColor = .white
-        pauseButton.backgroundColor = .white.withAlphaComponent(0.15)
-        pauseButton.layer.cornerRadius = 20
-        pauseButton.addTarget(self, action: #selector(pauseButtonTapped), for: .touchUpInside)
-        containerView.addSubview(pauseButton)
-
-        // 停止按钮
+        // 停止按钮 - 居中显示
         stopButton.translatesAutoresizingMaskIntoConstraints = false
         stopButton.setImage(UIImage(systemName: "stop.fill"), for: .normal)
         stopButton.tintColor = .white
         stopButton.backgroundColor = .white.withAlphaComponent(0.15)
         stopButton.layer.cornerRadius = 20
+        stopButton.isHidden = true  // 默认隐藏
         stopButton.addTarget(self, action: #selector(stopButtonTapped), for: .touchUpInside)
         containerView.addSubview(stopButton)
 
         NSLayoutConstraint.activate([
-            // 播放按钮 - 左侧
-            playButton.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 16),
-            playButton.trailingAnchor.constraint(equalTo: containerView.centerXAnchor, constant: -30),
-            playButton.widthAnchor.constraint(equalToConstant: 40),
-            playButton.heightAnchor.constraint(equalToConstant: 40),
-
-            // 暂停按钮 - 中间
-            pauseButton.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 16),
-            pauseButton.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
-            pauseButton.widthAnchor.constraint(equalToConstant: 40),
-            pauseButton.heightAnchor.constraint(equalToConstant: 40),
-
-            // 停止按钮 - 右侧
+            // 停止按钮 - 居中
             stopButton.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 16),
-            stopButton.leadingAnchor.constraint(equalTo: containerView.centerXAnchor, constant: 30),
+            stopButton.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
             stopButton.widthAnchor.constraint(equalToConstant: 40),
             stopButton.heightAnchor.constraint(equalToConstant: 40)
         ])
     }
 
     // MARK: - 事件处理
-    @objc private func playButtonTapped() {
-        delegate?.playerControlViewDidTapPlay(self)
-    }
-
-    @objc private func pauseButtonTapped() {
-        delegate?.playerControlViewDidTapPause(self)
-    }
-
     @objc private func stopButtonTapped() {
         delegate?.playerControlViewDidTapStop(self)
     }
@@ -250,10 +209,10 @@ extension PlayerControlView {
         timeLabel.text = "\(currentFormatted) - \(totalFormatted)"
     }
 
-    func setButtonStates(isPlaying: Bool) {
-        // 根据播放状态显示/隐藏按钮
-        playButton.isHidden = isPlaying
-        pauseButton.isHidden = !isPlaying
+    /// 隐藏或显示停止按钮
+    /// - Parameter hidden: true 表示隐藏按钮，false 表示显示按钮
+    func setControlsHidden(_ hidden: Bool) {
+        stopButton.isHidden = hidden
     }
 
     func resetUI() {
@@ -262,6 +221,7 @@ extension PlayerControlView {
         progressSlider.value = 0
         timeLabel.text = "00:00 - 00:00"
         currentTotalTime = 0
-        setButtonStates(isPlaying: false)
+        // 重置按钮为默认隐藏状态
+        setControlsHidden(true)
     }
 }
