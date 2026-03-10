@@ -217,7 +217,7 @@ class LoginPage: UIViewController {
         profile.appSign = ZegoAppConfig.appSign
         profile.scenario = ZegoScenario.general
 
-        ZegoExpressEngine.createEngine(with: profile, eventHandler: self)
+        ZegoExpressEngine.createEngine(with: profile, eventHandler: nil)
 
         // 3. 关闭摄像头，规避隐私风险
         // 基于 ZegoExpressEngine+Device.h:249

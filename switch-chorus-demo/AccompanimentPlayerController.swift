@@ -44,6 +44,9 @@ class AccompanimentPlayerController: NSObject {
     /// 缓存的歌曲总时长（秒）- 在 load 成功后获取，避免频繁调用同步耗时方法
     private(set) var cachedTotalTime: TimeInterval = 0
 
+    /// 是否正在加载歌曲（用于避免加载期间的 idle 状态触发 UI 重置）
+    private(set) var isLoadingSong = false
+
     // MARK: - 生命周期
     override init() {
         super.init()
@@ -80,6 +83,9 @@ extension AccompanimentPlayerController {
             return
         }
 
+        // 标记开始加载
+        print("[Player] loadSong 开始，设置 isLoadingSong = true")
+        isLoadingSong = true
         currentSong = song
         updateState(.loading)
 
@@ -92,6 +98,9 @@ extension AccompanimentPlayerController {
             guard let self = self else { return }
 
             DispatchQueue.main.async {
+                // 标记加载完成
+                print("[Player] loadSong 完成，设置 isLoadingSong = false")
+                self.isLoadingSong = false
                 if errorCode == 0 {
                     // 缓存总时长，避免频繁调用同步耗时方法
                     self.cachedTotalTime = TimeInterval(player.totalDuration()) / 1000.0
@@ -139,6 +148,20 @@ extension AccompanimentPlayerController {
                 self?.delegate?.player(self!, didEncounterError: .seekFailed(errorCode))
             }
         }
+    }
+
+    /// 设置本地播放音量
+    /// - Parameter volume: 音量值 0-200，默认60
+    func setLocalVolume(_ volume: Int) {
+        guard let player = mediaPlayer else { return }
+        player.setPlayVolume(Int32(volume))
+    }
+
+    /// 设置推流音量
+    /// - Parameter volume: 音量值 0-200，默认60
+    func setPublishVolume(_ volume: Int) {
+        guard let player = mediaPlayer else { return }
+        player.setPublishVolume(Int32(volume))
     }
 }
 

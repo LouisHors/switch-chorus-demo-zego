@@ -64,6 +64,12 @@ class TeamChorusViewController: UIViewController {
         setupCallbacks()
         setupAudioConfig()
         setupPlayer()
+        setupEventHandler()
+    }
+
+    /// 设置 ZegoEventHandler
+    private func setupEventHandler() {
+        zego.setEventHandler(self)
     }
 
     override func viewDidLayoutSubviews() {
@@ -165,31 +171,38 @@ class TeamChorusViewController: UIViewController {
 
     // MARK: - 推流逻辑
 
-    private var canPublish: Bool {
-        let streamCount = roomStreamList.count
-        if streamCount == 0 {
-            return true
-        } else if streamCount == 1 {
-            return hasTeamAMarked()
-        }
-        return false
-    }
-
-    private func hasTeamAMarked() -> Bool {
+    /// 获取房间内所有合法的队伍集合
+    private var teamsInRoom: Set<ChorusTeam> {
+        var teams: Set<ChorusTeam> = []
         for stream in roomStreamList {
-            if stream.extraInfo.contains("team:A") {
-                return true
+            if let team = getTeamFromStream(stream) {
+                teams.insert(team)
             }
         }
-        return false
+        return teams
     }
 
+    /// 是否可以推流
+    /// 规则：
+    /// 1. 房间内没有流 -> 可以推流
+    /// 2. 房间内有合法流，且只有一队 -> 可以推流
+    /// 3. 房间内有合法流，且有两队 -> 不可以推流
+    private var canPublish: Bool {
+        let teams = teamsInRoom
+        return teams.count < 2
+    }
+
+    /// 确定我的队伍
+    /// 规则：
+    /// 1. 房间内没有流 -> 作为 TeamA
+    /// 2. 只有 TeamA -> 作为 TeamB
+    /// 3. 只有 TeamB -> 作为 TeamA
     private func determineMyTeam() -> ChorusTeam? {
-        let streamCount = roomStreamList.count
-        if streamCount == 0 {
+        let teams = teamsInRoom
+        if teams.isEmpty {
             return .teamA
-        } else if streamCount == 1 && hasTeamAMarked() {
-            return .teamB
+        } else if teams.count == 1 {
+            return teams.contains(.teamA) ? .teamB : .teamA
         }
         return nil
     }
@@ -200,7 +213,26 @@ class TeamChorusViewController: UIViewController {
             return
         }
 
+        // 检查单队上麦限制：如果对方正在播放，需要等待
+        let teams = teamsInRoom
+        if teams.count == 1 {
+            // 房间内已有一队，检查是否有歌曲正在播放
+            // 通过是否有有效歌曲来判断（收到SEI后会设置effectiveSong）
+            if effectiveSong != nil {
+                print("[TeamChorus] 无法上麦：当前歌曲演唱完才能上麦")
+                showAlert(title: "提示", message: "当前歌曲演唱完才能上麦")
+                return
+            }
+        }
+
         startPublishing(team: team)
+    }
+
+    /// 显示提示框
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        present(alert, animated: true)
     }
 
     private func startPublishing(team: ChorusTeam) {
@@ -223,10 +255,13 @@ class TeamChorusViewController: UIViewController {
         // 5. 开始推流（辅通道 - 人声复用）
         zego.startPublishingStream(auxStreamID, config: config, channel: .aux)
 
-        // 6. 设置流额外信息，标记队伍
+        // 6. 设置流额外信息，标记队伍（主路和辅路都需要设置）
         let extraInfo = "team:\(team == .teamA ? "A" : "B")"
-        zego.setStreamExtraInfo(extraInfo) { errorCode in
-            print("[TeamChorus] 设置流额外信息: \(errorCode == 0 ? "成功" : "失败")")
+        zego.setStreamExtraInfo(extraInfo, channel: .main) { errorCode in
+            print("[TeamChorus] 设置主路流额外信息: \(errorCode == 0 ? "成功" : "失败")")
+        }
+        zego.setStreamExtraInfo(extraInfo, channel: .aux) { errorCode in
+            print("[TeamChorus] 设置辅路流额外信息: \(errorCode == 0 ? "成功" : "失败")")
         }
 
         // 7. 更新状态
@@ -298,15 +333,46 @@ class TeamChorusViewController: UIViewController {
         return nil
     }
 
+    /// 判断流是否为主路流（_main_ 标记）
+    private func isMainStream(_ streamID: String) -> Bool {
+        return streamID.contains("_main_")
+    }
+
+    /// 判断流是否为辅路流（_aux_ 标记）
+    private func isAuxStream(_ streamID: String) -> Bool {
+        return streamID.contains("_aux_")
+    }
+
+    /// 是否应该拉取这条流
+    /// 规则：
+    /// - 主播（正在推流）：只拉辅路流（_aux_ 标记，纯人声）
+    /// - 观众（未推流）：只拉主路流（_main_ 标记，人声+伴奏）
+    private func shouldPlayStream(_ stream: ZegoStream) -> Bool {
+        let streamID = stream.streamID
+        if isPublishing {
+            // 主播只拉辅路流
+            return isAuxStream(streamID)
+        } else {
+            // 观众只拉主路流
+            return isMainStream(streamID)
+        }
+    }
+
     private func startPlayingStream(_ stream: ZegoStream, forTeam team: ChorusTeam) {
         let streamID = stream.streamID
 
-        // 1. 配置拉流对齐（全局设置，对所有拉流生效）
+        // 1. 根据角色判断是否拉取此流
+        guard shouldPlayStream(stream) else {
+            print("[TeamChorus] 跳过拉流: \(streamID) (当前角色: \(isPublishing ? "主播" : "观众"))")
+            return
+        }
+
+        // 2. 配置拉流对齐（全局设置，对所有拉流生效）
         // 与推流端的 setStreamAlignmentProperty 成对使用
         // API 来源: ZegoExpressEngine+Player.h:420
         zego.setPlayStreamsAlignmentProperty(.try)
 
-        // 2. 开始拉流
+        // 3. 开始拉流
         // API 来源: ZegoExpressEngine+Player.h:62
         zego.startPlayingStream(streamID)
 
@@ -360,14 +426,9 @@ extension TeamChorusViewController: ZegoEventHandler {
     func onRoomStreamUpdate(_ updateType: ZegoUpdateType, streamList: [ZegoStream], extendedData: [AnyHashable: Any]?, roomID: String) {
         switch updateType {
         case .add:
-            if roomStreamList.count >= 2 {
-                print("[TeamChorus] 房间内已有 2 条流，忽略新增流")
-                return
-            }
-
             for stream in streamList {
                 guard let team = getTeamFromStream(stream) else {
-                    print("[TeamChorus] 流 \(stream.streamID) 的 extraInfo 不合法")
+                    print("[TeamChorus] 流 \(stream.streamID) 的 extraInfo 不合法，跳过")
                     continue
                 }
 
@@ -377,12 +438,20 @@ extension TeamChorusViewController: ZegoEventHandler {
 
         case .delete:
             for stream in streamList {
-                roomStreamList.remove(stream)
+                // 根据 streamID 删除（因为 ZegoStream 是 OC 对象，直接 remove 可能不匹配）
+                let streamID = stream.streamID
+                if let existingStream = roomStreamList.first(where: { $0.streamID == streamID }) {
+                    roomStreamList.remove(existingStream)
+                    print("[TeamChorus] 删除流: \(streamID)")
+                }
 
                 if let team = getTeamFromStream(stream) {
                     stopPlayingStream(stream, forTeam: team)
                 }
             }
+            // 打印删除后的队伍信息
+            let remainingTeams = teamsInRoom
+            print("[TeamChorus] 流删除后，当前队伍: \(remainingTeams)")
 
         default:
             break
@@ -414,11 +483,26 @@ extension TeamChorusViewController: ZegoEventHandler {
     // MARK: - SEI 处理（推流用户）
 
     /// 处理推流用户收到的 SEI
-    /// 主要逻辑：点歌竞争判断、进度对齐、切换时间戳同步
+    /// 主要逻辑：点歌竞争判断、进度对齐、切换时间戳同步、歌曲同步
     private func handleSEIForPublisher(_ seiData: ChorusSEIData, fromStreamID: String) {
-        // 1. 点歌竞争判断
+        // 1. 判断播放是否结束（进度 >= 总时长）
+        if seiData.totalDuration > 0 && seiData.currentProgress >= seiData.totalDuration {
+            print("[SEI] 播放结束，清空播放信息")
+            clearPlaybackInfo()
+            return
+        }
+
+        // 2. 如果对方正在唱歌，同步歌曲信息（无论是否竞争）
+        // 这是为了确保后上麦或后点歌的用户能同步到当前歌曲
+        if seiData.isSinging && seiData.currentSong != effectiveSong?.name {
+            print("[SEI] 推流用户同步歌曲: \(seiData.currentSong)")
+            syncSongFromSEI(seiData)
+        }
+
+        // 2. 点歌竞争判断（仅当双方都点了歌时）
         // 如果对方点歌时间戳更早，且歌曲不同，则需要切换到对方的歌曲
         if seiData.pickSongTimestamp > 0 &&
+           localPickSongTimestamp > 0 &&
            seiData.pickSongTimestamp < localPickSongTimestamp &&
            seiData.currentSong != effectiveSong?.name {
 
@@ -429,7 +513,7 @@ extension TeamChorusViewController: ZegoEventHandler {
             return
         }
 
-        // 2. 同步切换时间戳（以 isSinging=true 的用户为准）
+        // 3. 同步切换时间戳（以 isSinging=true 的用户为准）
         // 如果对方正在唱歌且设置了切换时间戳，则采用对方的切换时间戳
         if seiData.isSinging &&
            seiData.switchTimeStamp > 0 &&
@@ -438,10 +522,121 @@ extension TeamChorusViewController: ZegoEventHandler {
             seiSyncManager.setSwitchTimeStamp(seiData.switchTimeStamp)
         }
 
-        // 3. 如果歌曲一致，进行进度对齐
+        // 4. 如果歌曲一致，进行进度对齐
         if seiData.currentSong == effectiveSong?.name {
             alignPlaybackProgress(seiData: seiData)
         }
+    }
+
+    /// 从 SEI 同步歌曲信息（用于推流用户之间同步）
+    /// 本地需要加载歌曲并播放（音量为0），以确保进度回调和seek操作正常工作
+    private func syncSongFromSEI(_ seiData: ChorusSEIData) {
+        // 如果 SEI 中的歌曲名为空，不同步（避免被旧的空 SEI 重置）
+        guard !seiData.currentSong.isEmpty else {
+            print("[SEI] 收到空的歌曲名，不同步")
+            return
+        }
+
+        // 更新本地歌曲信息
+        effectiveSong = SongItem(name: seiData.currentSong, filePath: "")
+        currentSong = effectiveSong
+
+        // 更新 SEI 管理器的歌曲
+        seiSyncManager.setSong(currentSong)
+
+        // 同步点歌时间戳（采用对方的，确保竞争逻辑正确）
+        if seiData.pickSongTimestamp > 0 {
+            localPickSongTimestamp = seiData.pickSongTimestamp
+            seiSyncManager.setPickSongTimestamp(seiData.pickSongTimestamp)
+        }
+
+        // 更新 UI
+        DispatchQueue.main.async { [weak self] in
+            self?.chorusView.playerControlView.setSongName(seiData.currentSong)
+        }
+
+        // 本地加载歌曲并播放（音量为0，仅用于同步进度）
+        // 注意：由于无法通过 SEI 获取文件路径，这里假设歌曲在 bundle 中
+        // 实际项目中可能需要通过其他方式获取文件路径
+        loadAndPlaySongSilently(songName: seiData.currentSong, progress: seiData.currentProgress)
+    }
+
+    /// 静默加载并播放歌曲（用于 SEI 同步场景）
+    /// - Parameters:
+    ///   - songName: 歌曲名称
+    ///   - progress: 起始播放进度（毫秒）
+    private func loadAndPlaySongSilently(songName: String, progress: UInt64) {
+        // 根据歌曲名称获取文件路径（从点歌列表中查找）
+        guard let song = findSongByName(songName) else {
+            print("[SEI] 无法找到歌曲: \(songName)")
+            return
+        }
+
+        // 加载歌曲
+        accompanimentPlayer.loadSong(song) { [weak self] result in
+            guard let self = self else { return }
+
+            switch result {
+            case .success:
+                print("[SEI] 歌曲加载成功: \(songName)")
+
+                // 设置本地音量为0（静音播放，只用于同步进度）
+                self.accompanimentPlayer.setLocalVolume(0)
+                // 推流音量保持默认60（SDK默认值，让其他人能听到）
+                self.accompanimentPlayer.setPublishVolume(60)
+
+                // 播放
+                self.accompanimentPlayer.play()
+
+                // seek 到当前进度
+                let targetTime = TimeInterval(progress) / 1000.0
+                self.accompanimentPlayer.seek(to: targetTime)
+
+                print("[SEI] 开始静默播放，进度: \(progress)ms")
+
+            case .failure(let error):
+                print("[SEI] 歌曲加载失败: \(error)")
+            }
+        }
+    }
+
+    /// 根据歌曲名称查找歌曲（从 bundle 中）
+    private func findSongByName(_ name: String) -> SongItem? {
+        // 方式1: 尝试从 resources 文件夹获取
+        if let resourcesURL = Bundle.main.url(forResource: "resources", withExtension: nil),
+           let files = try? FileManager.default.contentsOfDirectory(at: resourcesURL, includingPropertiesForKeys: nil) {
+            if let url = files.first(where: { $0.pathExtension == "mp3" && $0.deletingPathExtension().lastPathComponent == name }) {
+                return SongItem(name: name, filePath: url.path)
+            }
+        }
+
+        // 方式2: 直接在 Bundle 中搜索
+        if let path = Bundle.main.path(forResource: name, ofType: "mp3") {
+            return SongItem(name: name, filePath: path)
+        }
+
+        return nil
+    }
+
+    /// 清空播放信息（播放结束时调用）
+    private func clearPlaybackInfo() {
+        // 清空歌曲信息
+        effectiveSong = nil
+        currentSong = nil
+        localPickSongTimestamp = 0
+
+        // 重置 SEI 同步管理器
+        seiSyncManager.reset()
+
+        // 停止播放器
+        accompanimentPlayer.stop()
+
+        // 重置 UI
+        DispatchQueue.main.async { [weak self] in
+            self?.chorusView.playerControlView.resetUI()
+        }
+
+        print("[SEI] 播放信息已清空")
     }
 
     /// 处理点歌竞争失败
@@ -455,7 +650,11 @@ extension TeamChorusViewController: ZegoEventHandler {
             print("[SEI] 竞争失败，已静音")
         }
 
-        // 2. 更新 SEI 管理器的歌曲信息（保持同步）
+        // 2. 本地播放器音量设为0（静音播放，仅同步进度）
+        accompanimentPlayer.setLocalVolume(0)
+        print("[SEI] 竞争失败，本地音量设为0")
+
+        // 3. 更新 SEI 管理器的歌曲信息（保持同步）
         seiSyncManager.setIsSinging(false)
     }
 
@@ -484,6 +683,13 @@ extension TeamChorusViewController: ZegoEventHandler {
         // 只有推流用户才需要处理切换
         guard isPublishing else { return }
 
+        // 仅当房间内有两队时才执行切换逻辑
+        let teams = teamsInRoom
+        guard teams.count == 2 else {
+            print("[Switch] 房间内只有一队，不执行切换逻辑")
+            return
+        }
+
         // 检查是否需要切换
         guard seiSyncManager.shouldSwitch(currentProgress: currentProgressMs) else { return }
 
@@ -499,15 +705,33 @@ extension TeamChorusViewController: ZegoEventHandler {
         seiSyncManager.toggleSingingState()
         let newIsSinging = seiSyncManager.isSinging
 
-        // 2. 根据 isSinging 状态更新 mute 状态
+        // 2. 重置竞争静音状态（切换时需要恢复声音）
+        // 如果之前因为竞争失败被静音，现在切换后要恢复
+        if isMutedByCompetition && newIsSinging {
+            isMutedByCompetition = false
+            print("[Switch] 重置竞争静音状态，恢复推流")
+        }
+
+        // 3. 根据 isSinging 状态更新 mute 状态
         // isSinging: true -> mute: false (不静音，正常推流)
         // isSinging: false -> mute: true (静音)
         zego.mutePublishStreamAudio(!newIsSinging)
         zego.mutePublishStreamAudio(!newIsSinging, channel: .aux)
 
+        // 4. 调整播放器音量
+        // isSinging: true -> 本地音量60（SDK默认值，自己能听到）
+        // isSinging: false -> 本地音量0（静音，仅同步进度）
+        if newIsSinging {
+            accompanimentPlayer.setLocalVolume(60)
+            print("[Switch] 切换为演唱者，恢复本地音量60")
+        } else {
+            accompanimentPlayer.setLocalVolume(0)
+            print("[Switch] 切换为等待者，静音本地播放")
+        }
+
         print("[Switch] 队伍切换完成: isSinging=\(newIsSinging), mute=\(!newIsSinging)")
 
-        // 3. 标记切换已完成（确保只切换一次）
+        // 5. 标记切换已完成（确保只切换一次）
         seiSyncManager.markAsSwitched()
     }
 
@@ -516,10 +740,17 @@ extension TeamChorusViewController: ZegoEventHandler {
     /// 处理观众收到的 SEI
     /// 主要逻辑：判断谁在唱歌，同步歌曲信息和进度
     private func handleSEIForAudience(_ seiData: ChorusSEIData, fromStreamID: String) {
-        // 观众端只处理 isSinging 为 true 的 SEI
+        // 1. 判断播放是否结束（进度 >= 总时长）
+        if seiData.totalDuration > 0 && seiData.currentProgress >= seiData.totalDuration {
+            print("[SEI] 播放结束，清空播放信息")
+            clearPlaybackInfo()
+            return
+        }
+
+        // 2. 观众端只处理 isSinging 为 true 的 SEI
         guard seiData.isSinging else { return }
 
-        // 1. 同步歌曲信息
+        // 3. 同步歌曲信息
         if seiData.currentSong != effectiveSong?.name {
             print("[SEI] 观众同步歌曲: \(seiData.currentSong)")
             // 更新本地歌曲显示（UI 层）
@@ -563,8 +794,20 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
                 self.chorusView.playerControlView.setButtonStates(isPlaying: false)
                 self.seiSyncManager.setIsSinging(false)
                 // 停止时重置进度显示
-                if state == .idle || state == .ended {
+                // 注意：.idle 状态可能是加载新歌时调用 stop() 触发的，需要判断是否正在加载
+                print("[Player] 状态变化: \(state), isLoadingSong: \(self.accompanimentPlayer.isLoadingSong)")
+                if state == .ended {
+                    // 播放结束，确定重置
+                    print("[Player] 播放结束，重置 UI")
                     self.chorusView.playerControlView.resetUI()
+                } else if state == .idle {
+                    if self.accompanimentPlayer.isLoadingSong {
+                        print("[Player] 加载期间忽略 idle 状态，不重置 UI")
+                    } else {
+                        // 仅在非加载期间的重置才更新 UI
+                        print("[Player] 非加载期间的 idle，重置 UI")
+                        self.chorusView.playerControlView.resetUI()
+                    }
                 }
             default:
                 break
