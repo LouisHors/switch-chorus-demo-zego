@@ -258,8 +258,10 @@ class ChorusSEISyncManager {
         // 临时日志：打印发送的 SEI 内容
         print("[SEI] ➡️ 发送: song=\(currentSEIData.currentSong), progress=\(currentSEIData.currentProgress)ms, total=\(currentSEIData.totalDuration)ms, isSinging=\(currentSEIData.isSinging), team=\(currentSEIData.currentTeam), pickTS=\(currentSEIData.pickSongTimestamp), switchTS=\(currentSEIData.switchTimeStamp), hasSwitched=\(hasSwitched)")
 
-        // 发送 SEI
-        zego.sendSEI(data, channel: channel)
+        // 发送 SEI 到主通道（观众拉主路，需要收到SEI）
+        zego.sendSEI(data, channel: .main)
+        // 发送 SEI 到辅通道（主播拉辅路，需要收到SEI）
+        zego.sendSEI(data, channel: .aux)
         lastSendTime = currentTime
 
         // 调试日志（每5秒打印一次）

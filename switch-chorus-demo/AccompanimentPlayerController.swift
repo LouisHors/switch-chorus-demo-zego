@@ -84,7 +84,7 @@ extension AccompanimentPlayerController {
         }
 
         // 标记开始加载
-        print("[Player] loadSong 开始，设置 isLoadingSong = true")
+        DebugLogManager.shared.log("[Player] loadSong 开始，设置 isLoadingSong = true")
         isLoadingSong = true
         currentSong = song
         updateState(.loading)
@@ -99,7 +99,7 @@ extension AccompanimentPlayerController {
 
             DispatchQueue.main.async {
                 // 标记加载完成
-                print("[Player] loadSong 完成，设置 isLoadingSong = false")
+                DebugLogManager.shared.log("[Player] loadSong 完成，设置 isLoadingSong = false")
                 self.isLoadingSong = false
                 if errorCode == 0 {
                     // 缓存总时长，避免频繁调用同步耗时方法

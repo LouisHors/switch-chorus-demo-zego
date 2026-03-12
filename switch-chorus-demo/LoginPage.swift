@@ -17,7 +17,7 @@ class LoginPage: UIViewController {
     /// 标题标签
     private let titleLabel: UILabel = {
         let label = UILabel()
-        label.text = "语聊房"
+        label.text = "合唱测试"
         label.font = .systemFont(ofSize: 32, weight: .bold)
         label.textColor = AppColors.textPrimary
         label.textAlignment = .center
