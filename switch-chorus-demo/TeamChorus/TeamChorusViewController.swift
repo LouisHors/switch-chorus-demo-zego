@@ -664,7 +664,7 @@ extension TeamChorusViewController: ZegoEventHandler {
         }
 
         // 临时日志：打印接收到的 SEI 内容
-        print("[SEI] ⬅️ 接收 from \(streamID): song=\(seiData.currentSong), progress=\(seiData.currentProgress)ms, total=\(seiData.totalDuration)ms, isSinging=\(seiData.isSinging), team=\(seiData.currentTeam), pickTS=\(seiData.pickSongTimestamp), switchTS=\(seiData.switchTimeStamp)")
+//        print("[SEI] ⬅️ 接收 from \(streamID): song=\(seiData.currentSong), progress=\(seiData.currentProgress)ms, total=\(seiData.totalDuration)ms, isSinging=\(seiData.isSinging), team=\(seiData.currentTeam), pickTS=\(seiData.pickSongTimestamp), switchTS=\(seiData.switchTimeStamp)")
 
         // 2. 判断当前角色：推流用户 vs 观众
         if isPublishing {
@@ -686,27 +686,26 @@ extension TeamChorusViewController: ZegoEventHandler {
             return
         }
 
-        // 2. 如果对方正在唱歌，同步歌曲信息（无论是否竞争）
-        // 这是为了确保后上麦或后点歌的用户能同步到当前歌曲
-        if seiData.isSinging && seiData.currentSong != effectiveSong?.name {
-            print("[SEI] 推流用户同步歌曲: \(seiData.currentSong)")
-            syncSongFromSEI(seiData)
-        }
-
-        // 2. 点歌竞争判断（仅当双方都点了歌时才需要竞争）
+        // 2. 点歌竞争判断（提前到 syncSong 之前，避免 effectiveSong 被提前覆盖导致判断失效）
+        // 仅当双方都点了歌时才需要竞争
         if seiData.pickSongTimestamp > 0 && localPickSongTimestamp > 0 {
             if seiData.pickSongTimestamp < localPickSongTimestamp &&
                seiData.currentSong != effectiveSong?.name {
                 print("[SEI] 点歌竞争失败，切换到对方歌曲: \(seiData.currentSong)")
                 handleLostSongCompetition(seiData: seiData)
+                syncSongFromSEI(seiData)
                 return
             }
         }
-        // 如果对方点了歌而自己没点歌，不需要竞争，直接同步歌曲即可
-        // 同步歌曲的逻辑在第1步已经处理
 
-        // 3. 同步切换时间戳（以 isSinging=true 的用户为准）
-        // 如果对方正在唱歌且设置了切换时间戳，则采用对方的切换时间戳
+        // 3. 如果对方正在唱歌，同步歌曲信息
+        // 这包括：后上麦/后点歌的用户、本地未点歌的用户
+        if seiData.isSinging && seiData.currentSong != effectiveSong?.name {
+            print("[SEI] 推流用户同步歌曲: \(seiData.currentSong)")
+            syncSongFromSEI(seiData)
+        }
+
+        // 4. 同步切换时间戳（以 isSinging=true 的用户为准）
         if seiData.isSinging &&
            seiData.switchTimeStamp > 0 &&
            seiSyncManager.switchTimeStamp == 0 {
@@ -714,7 +713,7 @@ extension TeamChorusViewController: ZegoEventHandler {
             seiSyncManager.setSwitchTimeStamp(seiData.switchTimeStamp)
         }
 
-        // 4. 如果歌曲一致，进行进度对齐
+        // 5. 如果歌曲一致，进行进度对齐
         if seiData.currentSong == effectiveSong?.name {
             alignPlaybackProgress(seiData: seiData)
         }
@@ -736,12 +735,6 @@ extension TeamChorusViewController: ZegoEventHandler {
         // 更新 SEI 管理器的歌曲
         seiSyncManager.setSong(currentSong)
 
-        // 同步点歌时间戳（采用对方的，确保竞争逻辑正确）
-        if seiData.pickSongTimestamp > 0 {
-            localPickSongTimestamp = seiData.pickSongTimestamp
-            seiSyncManager.setPickSongTimestamp(seiData.pickSongTimestamp)
-        }
-
         // 同步切换时间戳（如果已设置）
         if seiData.switchTimeStamp > 0 && seiSyncManager.switchTimeStamp == 0 {
             seiSyncManager.setSwitchTimeStamp(seiData.switchTimeStamp)
@@ -757,6 +750,14 @@ extension TeamChorusViewController: ZegoEventHandler {
         // 注意：由于无法通过 SEI 获取文件路径，这里假设歌曲在 bundle 中
         // 实际项目中可能需要通过其他方式获取文件路径
         loadAndPlaySongSilently(songName: seiData.currentSong, progress: seiData.currentProgress)
+
+        // 如果本地未主动点歌，明确作为"等待者"进入演唱状态机
+        if localPickSongTimestamp == 0 {
+            seiSyncManager.setIsSinging(false)
+            updateMuteState()              // hasActiveSong=true, isSinging=false → mute=true
+            updatePlayerControlVisibility() // 隐藏播放控制按钮
+            DebugLogManager.shared.log("[SEI] 本地未点歌，收到 SEI 后初始化状态: isSinging=false, mute=true")
+        }
     }
 
     /// 静默加载并播放歌曲（用于 SEI 同步场景）
@@ -864,12 +865,12 @@ extension TeamChorusViewController: ZegoEventHandler {
         let localProgressMs = UInt64(accompanimentPlayer.currentTime * 1000)
         let remoteProgressMs = seiData.currentProgress
 
-        // 如果进度差超过 100ms，进行对齐
+        // 如果进度差超过 100ms，且本地不是演唱端，进行对齐
         if ChorusSEIParser.needsAlignment(
             localProgress: localProgressMs,
             remoteProgress: remoteProgressMs,
             threshold: 100
-        ) {
+        ) && !seiSyncManager.isSinging {
             let targetTime = TimeInterval(remoteProgressMs) / 1000.0
             print("[SEI] 进度对齐: 本地 \(localProgressMs)ms -> 远程 \(remoteProgressMs)ms")
             accompanimentPlayer.seek(to: targetTime)
@@ -985,10 +986,10 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
 
             switch state {
             case .playing:
-                self.seiSyncManager.setIsSinging(true)
+//                self.seiSyncManager.setIsSinging(true)
                 self.updatePlayerControlVisibility()
             case .paused, .idle, .ended:
-                self.seiSyncManager.setIsSinging(false)
+//                self.seiSyncManager.setIsSinging(false)
                 self.updatePlayerControlVisibility()
                 // 停止时重置进度显示
                 // 注意：.idle 状态可能是加载新歌时调用 stop() 触发的，需要判断是否正在加载

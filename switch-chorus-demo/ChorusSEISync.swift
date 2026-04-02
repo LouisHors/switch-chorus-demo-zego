@@ -205,9 +205,10 @@ class ChorusSEISyncManager {
 
     /// 切换 isSinging 状态
     func toggleSingingState() {
+        DebugLogManager.shared.log("[SEISync 开始切换，切换前 isSinging: \(isSinging)")
         isSinging = !isSinging
         updateSEIData()
-        print("[SEISync] 切换 isSinging 状态: \(isSinging)")
+        DebugLogManager.shared.log("[SEISync] 切换 isSinging 状态: \(isSinging)")
     }
 
     // MARK: - SEI 发送
@@ -256,7 +257,7 @@ class ChorusSEISyncManager {
         }
 
         // 临时日志：打印发送的 SEI 内容
-        print("[SEI] ➡️ 发送: song=\(currentSEIData.currentSong), progress=\(currentSEIData.currentProgress)ms, total=\(currentSEIData.totalDuration)ms, isSinging=\(currentSEIData.isSinging), team=\(currentSEIData.currentTeam), pickTS=\(currentSEIData.pickSongTimestamp), switchTS=\(currentSEIData.switchTimeStamp), hasSwitched=\(hasSwitched)")
+//        print("[SEI] ➡️ 发送: song=\(currentSEIData.currentSong), progress=\(currentSEIData.currentProgress)ms, total=\(currentSEIData.totalDuration)ms, isSinging=\(currentSEIData.isSinging), team=\(currentSEIData.currentTeam), pickTS=\(currentSEIData.pickSongTimestamp), switchTS=\(currentSEIData.switchTimeStamp), hasSwitched=\(hasSwitched)")
 
         // 发送 SEI 到主通道（观众拉主路，需要收到SEI）
         zego.sendSEI(data, channel: .main)
