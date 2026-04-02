@@ -109,3 +109,6 @@ Thumbs.db
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Zego SDK binary framework
+switch-chorus-demo/lib/
