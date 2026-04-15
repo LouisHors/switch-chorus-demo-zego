@@ -151,16 +151,29 @@ class ChorusSEISyncManager {
         updateSEIData()
     }
 
-    /// 重置所有状态
+    /// 重置所有状态（包括队伍）
     func reset() {
         team = nil
+        resetPlaybackState()
+    }
+
+    /// 仅重置播放相关状态（保留队伍）
+    func resetPlaybackState() {
         song = nil
         switchTimeStamp = 0
         isSinging = false
         pickSongTimestamp = 0
         hasSwitched = false
         lastSendTime = 0
-        currentSEIData = ChorusSEIData()
+        currentSEIData = ChorusSEIData(
+            totalDuration: 0,
+            currentProgress: 0,
+            isSinging: false,
+            switchTimeStamp: 0,
+            currentTeam: team?.rawValue ?? "",
+            currentSong: "",
+            pickSongTimestamp: 0
+        )
     }
 
     /// 生成切换时间戳
@@ -182,6 +195,18 @@ class ChorusSEISyncManager {
         updateSEIData()
         print("[SEISync] 生成切换时间戳: \(switchTimeStamp)ms (总时长: \(totalDuration)ms, 中点: \(halfDuration)ms)")
         return switchTimeStamp
+    }
+
+    /// 发送终端 SEI（播放结束信号）
+    /// 仅在 isSinging == true 时发送，用于通知房间其他成员播放结束
+    /// - Parameter totalDuration: 歌曲总时长（毫秒），作为终端进度
+    func sendTerminalSEI(totalDuration: UInt64) {
+        guard isSinging else {
+            DebugLogManager.shared.log("[SEISync] sendTerminalSEI: isSinging=false，跳过发送")
+            return
+        }
+        DebugLogManager.shared.log("[SEISync] sendTerminalSEI: 发送结束信号 totalDuration=\(totalDuration)ms")
+        sendProgressSync(currentProgress: totalDuration, totalDuration: totalDuration, force: true)
     }
 
     /// 检查是否需要切换

@@ -830,8 +830,8 @@ extension TeamChorusViewController: ZegoEventHandler {
         // 3. 重置 mute 状态（歌曲结束后，统一 mute=false）
         updateMuteState()
 
-        // 4. 重置 SEI 同步管理器的其他状态
-        seiSyncManager.reset()
+        // 4. 重置 SEI 同步管理器的播放状态（保留队伍）
+        seiSyncManager.resetPlaybackState()
 
         // 5. 停止播放器
         accompanimentPlayer.stop()
@@ -995,9 +995,17 @@ extension TeamChorusViewController: AccompanimentPlayerDelegate {
                 // 注意：.idle 状态可能是加载新歌时调用 stop() 触发的，需要判断是否正在加载
                 DebugLogManager.shared.log("[Player] 状态变化: \(state), isLoadingSong: \(self.accompanimentPlayer.isLoadingSong)")
                 if state == .ended {
-                    // 播放结束，确定重置
+                    // 播放结束，清理本地状态
                     DebugLogManager.shared.log("[Player] 播放结束，重置 UI")
-                    self.chorusView.playerControlView.resetUI()
+                    self.clearPlaybackInfo()
+
+                    // 发送终端 SEI 确保房间其他成员同步
+                    // 只有正在唱歌的主播才发送结束信号
+                    let totalDurationMs = UInt64(self.accompanimentPlayer.cachedTotalTime * 1000)
+                    if self.seiSyncManager.isSinging {
+                        DebugLogManager.shared.log("[Player] 发送终端 SEI 确保房间同步")
+                        self.seiSyncManager.sendTerminalSEI(totalDuration: totalDurationMs)
+                    }
                 } else if state == .idle {
                     if self.accompanimentPlayer.isLoadingSong {
                         DebugLogManager.shared.log("[Player] 加载期间忽略 idle 状态，不重置 UI")
@@ -1077,20 +1085,33 @@ extension TeamChorusViewController: SongPickerDelegate {
 
         // 6. 自动加载歌曲
         accompanimentPlayer.loadSong(song) { [weak self] result in
+            guard let self = self else { return }
+
+            // 检查回调是否仍然有效：歌曲名是否仍是当前歌曲
+            // 如果期间发生了竞争失败或切歌，currentSong 会被覆盖
+            if self.currentSong?.name != song.name {
+                DebugLogManager.shared.log("[TeamChorus] 歌曲已切换（当前: \(self.currentSong?.name ?? "nil")），跳过 load 回调: \(song.name)")
+                return
+            }
+
             switch result {
             case .success:
                 DebugLogManager.shared.log("[TeamChorus] 歌曲加载成功: \(song.name)")
 
                 // 生成切换时间戳（总时长/2 ± 10000ms 随机偏移）
-                let totalDurationMs = UInt64(self?.accompanimentPlayer.cachedTotalTime ?? 0) * 1000
+                let totalDurationMs = UInt64(self.accompanimentPlayer.cachedTotalTime) * 1000
                 if totalDurationMs > 0 {
-                    let switchTime = self?.seiSyncManager.generateSwitchTimeStamp(totalDuration: totalDurationMs)
+                    let switchTime = self.seiSyncManager.generateSwitchTimeStamp(totalDuration: totalDurationMs)
                     DebugLogManager.shared.log("[TeamChorus] 生成切换时间戳: \(switchTime ?? 0)ms")
                 }
 
+                // 恢复音量设置（上一次播放结束或竞争失败可能把音量设为了0）
+                self.accompanimentPlayer.setLocalVolume(60)
+                self.accompanimentPlayer.setPublishVolume(60)
+
                 // 如果已在推流状态，自动开始播放
-                if self?.isPublishing == true {
-                    self?.accompanimentPlayer.play()
+                if self.isPublishing {
+                    self.accompanimentPlayer.play()
                 }
             case .failure(let error):
                 DebugLogManager.shared.log("[TeamChorus] 歌曲加载失败: \(error)")
