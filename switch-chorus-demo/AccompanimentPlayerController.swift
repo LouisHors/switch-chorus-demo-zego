@@ -63,6 +63,8 @@ class AccompanimentPlayerController: NSObject {
         mediaPlayer?.setEventHandler(self)
         mediaPlayer?.setProgressInterval(100) // 100ms 回调
         mediaPlayer?.enableAux(true) // 重要：让对方听到伴奏
+        mediaPlayer?.setPlayVolume(100) // 默认音量 100
+        mediaPlayer?.setPublishVolume(100) // 默认推流音量 100
     }
 
     private func destroyMediaPlayer() {

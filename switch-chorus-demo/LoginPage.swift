@@ -207,7 +207,9 @@ class LoginPage: UIViewController {
             // 抖动级别补偿
             "jitter_level_compensation": "true",
             // 音频采集 dummy 模式
-            "audio_capture_dummy": "true"
+            "audio_capture_dummy": "true",
+            // 线性音量，优化渐入渐出
+            "volume_linear_gain": "true"
         ]
         ZegoExpressEngine.setEngineConfig(engineConfig)
 

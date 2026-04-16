@@ -42,6 +42,9 @@ class TeamChorusViewController: UIViewController {
     /// SEI 同步管理器
     private lazy var seiSyncManager = ChorusSEISyncManager(zego: zego, channel: .main)
 
+    /// 渐变操作的历史记录，用于取消过期回调
+    private var fadeHistoryToken: UInt64 = 0
+
     /// Debug 日志视图
     private lazy var debugLogView = DebugLogView()
 
@@ -130,7 +133,9 @@ class TeamChorusViewController: UIViewController {
     /// 规则：只有推流用户且 isSinging 为 true 时才显示控制按钮
     private func updatePlayerControlVisibility() {
         let shouldShowControls = isPublishing && seiSyncManager.isSinging
-        chorusView.playerControlView.setControlsHidden(!shouldShowControls)
+        DispatchQueue.main.async { [weak self] in
+            self?.chorusView.playerControlView.setControlsHidden(!shouldShowControls)
+        }
         DebugLogManager.shared.log("[UI] 播放控制按钮: \(shouldShowControls ? "显示" : "隐藏") (isPublishing=\(isPublishing), isSinging=\(seiSyncManager.isSinging))")
     }
 
@@ -338,7 +343,11 @@ class TeamChorusViewController: UIViewController {
         // 8. 初始化推流状态：未点歌时 mutePublish = false
         updateMuteState()
 
-        // 9. 更新 UI
+        // 9. 重置人声采集音量（确保推流开始时人声正常）
+        zego.setCaptureVolume(100)
+        DebugLogManager.shared.log("[TeamChorus] 推流开始，恢复采集音量到 100")
+
+        // 10. 更新 UI
         chorusView.updateMicUpButtonUI(isPublishing: true)
         chorusView.setPickSongButtonEnabled(true)
 
@@ -396,6 +405,10 @@ class TeamChorusViewController: UIViewController {
     }
 
     private func stopPublishing() {
+        // 废弃进行中的渐变回调（防止旧回调写入新会话）
+        fadeHistoryToken += 1
+        DebugLogManager.shared.log("[TeamChorus] 停止推流，废弃渐变回调: fadeHistoryToken=\(fadeHistoryToken)")
+
         // API 来源: ZegoExpressEngine+Publisher.h:109, 124
         zego.stopPublishingStream()
         zego.stopPublishingStream(.aux)
@@ -779,10 +792,10 @@ extension TeamChorusViewController: ZegoEventHandler {
             case .success:
                 print("[SEI] 歌曲加载成功: \(songName)")
 
-                // 设置本地音量为0（静音播放，只用于同步进度）
-                self.accompanimentPlayer.setLocalVolume(0)
-                // 推流音量保持默认60（SDK默认值，让其他人能听到）
-                self.accompanimentPlayer.setPublishVolume(60)
+                // 设置本地音量为 100（等待者能听到歌曲，用于跟唱/监听）
+                self.accompanimentPlayer.setLocalVolume(100)
+                // 推流音量设为 0（等待者不向外推流伴奏，只拉取对方的流）
+                self.accompanimentPlayer.setPublishVolume(0)
 
                 // 播放
                 self.accompanimentPlayer.play()
@@ -819,6 +832,10 @@ extension TeamChorusViewController: ZegoEventHandler {
 
     /// 清空播放信息（播放结束时调用）
     private func clearPlaybackInfo() {
+        // 0. 废弃进行中的渐变回调
+        fadeHistoryToken += 1
+        DebugLogManager.shared.log("[SEI] 废弃渐变回调: fadeHistoryToken=\(fadeHistoryToken)")
+
         // 1. 先设置 isSinging = false
         seiSyncManager.setIsSinging(false)
 
@@ -836,7 +853,11 @@ extension TeamChorusViewController: ZegoEventHandler {
         // 5. 停止播放器
         accompanimentPlayer.stop()
 
-        // 6. 重置 UI
+        // 6. 重置人声采集音量（防止切换遗留导致的静音问题）
+        zego.setCaptureVolume(100)
+        DebugLogManager.shared.log("[SEI] 恢复采集音量到 100")
+
+        // 7. 重置 UI
         DispatchQueue.main.async { [weak self] in
             self?.chorusView.playerControlView.resetUI()
         }
@@ -907,30 +928,99 @@ extension TeamChorusViewController: ZegoEventHandler {
         performTeamSwitch()
     }
 
-    /// 执行队伍切换
+    /// 执行队伍切换（渐入渐出效果）
     private func performTeamSwitch() {
         // 1. 切换 isSinging 状态
+        let wasSinging = seiSyncManager.isSinging
         seiSyncManager.toggleSingingState()
+        let nowSinging = !wasSinging
 
-        // 2. 根据新的 isSinging 状态更新 mute
-        updateMuteState()
+        // 2. 执行渐入渐出切换（2秒平滑变化）
+        let duration: TimeInterval = 2.0
+        if nowSinging {
+            // 切换为演唱者：先 unmute，再开始渐入
+            updateMuteState()
 
-        // 3. 调整播放器音量
-        if seiSyncManager.isSinging {
-            accompanimentPlayer.setLocalVolume(60)
-            DebugLogManager.shared.log("[Switch] 切换为演唱者，恢复本地音量60")
+            // 从 0 开始渐入到 100
+            performFadeSwitch(
+                publishVolumeTarget: 100,
+                captureVolumeTarget: 100,
+                fadeOutPublishVolume: 0,
+                fadeOutCaptureVolume: 0,
+                duration: duration
+            )
         } else {
-            accompanimentPlayer.setLocalVolume(0)
-            DebugLogManager.shared.log("[Switch] 切换为等待者，静音本地播放")
+            // 切换为等待者：开始渐出（从 100 到 0），渐变完成后才 mute
+            // 渐出完成后在 performFadeSwitch 的回调中自动 mute
+            performFadeSwitch(
+                publishVolumeTarget: 0,
+                captureVolumeTarget: 0,
+                fadeOutPublishVolume: 100,
+                fadeOutCaptureVolume: 100,
+                duration: duration
+            )
         }
 
-        DebugLogManager.shared.log("[Switch] 队伍切换完成: isSinging=\(seiSyncManager.isSinging)")
-
-        // 4. 更新播放控制按钮可见性
+        // 3. 更新播放控制按钮可见性
         updatePlayerControlVisibility()
 
-        // 5. 标记切换已完成（确保只切换一次）
+        // 4. 标记切换已完成（确保只切换一次）
         seiSyncManager.markAsSwitched()
+    }
+
+    // MARK: - 音量渐变
+
+    /// 执行渐入渐出切换（播放伴奏音量，人声音量同步调整）
+    /// - Parameters:
+    ///   - publishVolumeTarget: 渐入方的伴奏目标音量（0-60）
+    ///   - captureVolumeTarget: 渐入方的人声目标音量（0-100）
+    ///   - fadeOutPublishVolume: 渐出方的伴奏起始音量（0-60）
+    ///   - fadeOutCaptureVolume: 渐出方的人声起始音量（0-100）
+    ///   - duration: 渐变持续时间（秒）
+    private func performFadeSwitch(publishVolumeTarget: Int, captureVolumeTarget: Int,
+                                   fadeOutPublishVolume: Int, fadeOutCaptureVolume: Int,
+                                   duration: TimeInterval = 1.5) {
+        // 生成新的渐变令牌，废弃之前的渐变回调
+        fadeHistoryToken += 1
+        let currentToken = fadeHistoryToken
+
+        let steps = 15
+        let interval = duration / Double(steps)
+
+        for i in 1...steps {
+            let stepIndex = i
+            DispatchQueue.main.asyncAfter(deadline: .now() + interval * Double(i)) { [weak self] in
+                guard let self = self else { return }
+
+                // 检查令牌是否仍然有效（防止过期回调执行）
+                guard self.fadeHistoryToken == currentToken else {
+                    DebugLogManager.shared.log("[FadeSwitch] 回调已过期（token=\(currentToken)），跳过执行")
+                    return
+                }
+
+                // 检查是否仍在推流状态
+                guard self.isPublishing else {
+                    DebugLogManager.shared.log("[FadeSwitch] 已停止推流，跳过执行")
+                    return
+                }
+
+                let progress = Float(stepIndex) / Float(steps)
+                let publishVolume = fadeOutPublishVolume + Int(Float(publishVolumeTarget - fadeOutPublishVolume) * progress)
+                let captureVolume = fadeOutCaptureVolume + Int(Float(captureVolumeTarget - fadeOutCaptureVolume) * progress)
+
+                // 伴奏推流音量（远端听到的）
+                self.accompanimentPlayer.setPublishVolume(max(0, min(100, publishVolume)))
+                // 人声采集音量（远端听到的，setCaptureVolume 会影响回调的 PCM 数据）
+                self.zego.setCaptureVolume(Int32(max(0, min(100, captureVolume))))
+
+                // 渐变完成后，切换为等待者时需要真正 mute 推流
+                if stepIndex == steps && !self.seiSyncManager.isSinging {
+                    self.updateMuteState()
+                }
+            }
+        }
+
+        DebugLogManager.shared.log("[FadeSwitch] 渐变启动: publish=\(publishVolumeTarget), capture=\(captureVolumeTarget)")
     }
 
     // MARK: - SEI 处理（观众）
@@ -1102,12 +1192,16 @@ extension TeamChorusViewController: SongPickerDelegate {
                 let totalDurationMs = UInt64(self.accompanimentPlayer.cachedTotalTime) * 1000
                 if totalDurationMs > 0 {
                     let switchTime = self.seiSyncManager.generateSwitchTimeStamp(totalDuration: totalDurationMs)
-                    DebugLogManager.shared.log("[TeamChorus] 生成切换时间戳: \(switchTime ?? 0)ms")
+                    DebugLogManager.shared.log("[TeamChorus] 生成切换时间戳: \(switchTime)ms")
                 }
 
-                // 恢复音量设置（上一次播放结束或竞争失败可能把音量设为了0）
-                self.accompanimentPlayer.setLocalVolume(60)
-                self.accompanimentPlayer.setPublishVolume(60)
+                // 恢复伴奏音量设置（上一次播放结束或竞争失败可能把音量设为了0）
+                self.accompanimentPlayer.setLocalVolume(100)
+                self.accompanimentPlayer.setPublishVolume(100)
+
+                // 恢复人声采集音量（在伴奏加载完成后才启用，避免"裸奔"人声）
+                self.zego.setCaptureVolume(100)
+                DebugLogManager.shared.log("[TeamChorus] 歌曲加载完成，恢复采集音量到 100")
 
                 // 如果已在推流状态，自动开始播放
                 if self.isPublishing {
@@ -1115,6 +1209,11 @@ extension TeamChorusViewController: SongPickerDelegate {
                 }
             case .failure(let error):
                 DebugLogManager.shared.log("[TeamChorus] 歌曲加载失败: \(error)")
+                // 加载失败，恢复等待状态的音量设置
+                self.zego.setCaptureVolume(0)
+                self.seiSyncManager.setIsSinging(false)
+                self.updateMuteState()
+                DebugLogManager.shared.log("[TeamChorus] 加载失败，已回退到等待状态")
             }
         }
     }
